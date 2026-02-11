@@ -4,8 +4,17 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Eye, EyeOff, ChefHat, Store, Truck, Users } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import {
+  Eye,
+  EyeOff,
+  ChefHat,
+  Store,
+  Truck,
+  Users,
+  ArrowLeft,
+  AlertCircle,
+} from "lucide-react";
+import { useAuth, mockUsers, ROLE_LABELS, ROLE_DASHBOARDS } from "@/contexts/AuthContext";
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -13,22 +22,34 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const { toast } = useToast();
+  const [error, setError] = useState("");
+  const { login } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
+    setError("");
 
-    // Simulate login - replace with actual auth logic
+    // Simulate network delay
     setTimeout(() => {
+      const result = login(email, password);
       setIsLoading(false);
-      toast({
-        title: "Đăng nhập thành công",
-        description: "Chào mừng bạn quay trở lại!",
-      });
-      navigate("/staff/dashboard");
-    }, 1500);
+
+      if (result.success) {
+        const dashboardPath = ROLE_DASHBOARDS[result.user.role];
+        navigate(dashboardPath || "/");
+      } else {
+        setError(result.error);
+      }
+    }, 800);
+  };
+
+  // Quick login with demo account
+  const handleQuickLogin = (demoEmail) => {
+    setEmail(demoEmail);
+    setPassword("123456");
+    setError("");
   };
 
   const features = [
@@ -54,6 +75,13 @@ const Login = () => {
     },
   ];
 
+  const roleIcons = {
+    franchise_staff: Store,
+    supply_coordinator: Truck,
+    central_kitchen: ChefHat,
+    manager: Users,
+  };
+
   return (
     <div className="min-h-screen flex">
       {/* Left Panel - Hero Section */}
@@ -63,13 +91,15 @@ const Login = () => {
         <div className="relative z-10 flex flex-col justify-between p-12 xl:p-16 w-full">
           {/* Logo */}
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl bg-primary flex items-center justify-center">
-              <ChefHat className="w-7 h-7 text-primary-foreground" />
-            </div>
-            <div>
-              <h1 className="text-xl font-bold text-white">CentralKitchen</h1>
-              <p className="text-sm text-white/60">Management System</p>
-            </div>
+            <Link to="/" className="flex items-center gap-3 group">
+              <div className="w-12 h-12 rounded-xl bg-primary flex items-center justify-center">
+                <ChefHat className="w-7 h-7 text-primary-foreground" />
+              </div>
+              <div>
+                <h1 className="text-xl font-bold text-white">CentralKitchen</h1>
+                <p className="text-sm text-white/60">Management System</p>
+              </div>
+            </Link>
           </div>
 
           {/* Main Content */}
@@ -112,9 +142,18 @@ const Login = () => {
 
       {/* Right Panel - Login Form */}
       <div className="w-full lg:w-1/2 xl:w-2/5 flex items-center justify-center p-8 bg-background">
-        <div className="w-full max-w-md space-y-8">
+        <div className="w-full max-w-md space-y-6">
+          {/* Back to homepage */}
+          <Link
+            to="/"
+            className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Trang chủ
+          </Link>
+
           {/* Mobile Logo */}
-          <div className="lg:hidden flex items-center justify-center gap-3 mb-8">
+          <div className="lg:hidden flex items-center justify-center gap-3 mb-4">
             <div className="w-12 h-12 rounded-xl bg-primary flex items-center justify-center">
               <ChefHat className="w-7 h-7 text-primary-foreground" />
             </div>
@@ -134,8 +173,16 @@ const Login = () => {
             </p>
           </div>
 
+          {/* Error message */}
+          {error && (
+            <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/20">
+              <AlertCircle className="w-4 h-4 text-destructive shrink-0" />
+              <p className="text-sm text-destructive">{error}</p>
+            </div>
+          )}
+
           {/* Login Form */}
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-5">
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
@@ -143,7 +190,10 @@ const Login = () => {
                 type="email"
                 placeholder="email@company.com"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  setError("");
+                }}
                 required
                 className="h-12"
               />
@@ -165,7 +215,10 @@ const Login = () => {
                   type={showPassword ? "text" : "password"}
                   placeholder="••••••••"
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    setError("");
+                  }}
                   required
                   className="h-12 pr-12"
                 />
@@ -213,6 +266,52 @@ const Login = () => {
             </Button>
           </form>
 
+          {/* Demo Accounts */}
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-border" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-background px-2 text-muted-foreground">
+                Tài khoản demo
+              </span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            {mockUsers.map((user) => {
+              const RoleIcon = roleIcons[user.role] || Users;
+              return (
+                <button
+                  key={user.id}
+                  type="button"
+                  onClick={() => handleQuickLogin(user.email)}
+                  className={`flex items-center gap-2.5 p-3 rounded-lg border transition-all text-left ${
+                    email === user.email
+                      ? "border-primary bg-primary/5"
+                      : "border-border hover:border-primary/50 hover:bg-accent/50"
+                  }`}
+                >
+                  <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                    <RoleIcon className="w-4 h-4 text-muted-foreground" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs font-medium text-foreground truncate">
+                      {ROLE_LABELS[user.role]}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground truncate">
+                      {user.email}
+                    </p>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+
+          <p className="text-center text-xs text-muted-foreground">
+            Mật khẩu cho tất cả tài khoản demo: <span className="font-mono font-semibold text-foreground">123456</span>
+          </p>
+
           {/* Help Text */}
           <div className="text-center">
             <p className="text-sm text-muted-foreground">
@@ -224,34 +323,6 @@ const Login = () => {
                 Đăng ký ngay
               </Link>
             </p>
-          </div>
-
-          {/* Divider */}
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-border" />
-            </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-background px-2 text-muted-foreground">
-                Hỗ trợ
-              </span>
-            </div>
-          </div>
-
-          {/* Support Links */}
-          <div className="flex justify-center gap-6 text-sm">
-            <a
-              href="#"
-              className="text-muted-foreground hover:text-foreground transition-colors"
-            >
-              Hướng dẫn sử dụng
-            </a>
-            <a
-              href="#"
-              className="text-muted-foreground hover:text-foreground transition-colors"
-            >
-              Liên hệ hỗ trợ
-            </a>
           </div>
         </div>
       </div>

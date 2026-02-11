@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useLocation, useNavigate, Outlet } from "react-router-dom";
 import { cn } from "@/lib/utils";
-import { currentUser } from "@/data/mockData";
+import { useAuth, ROLE_LABELS } from "@/contexts/AuthContext";
 import {
   ChefHat,
   LayoutDashboard,
@@ -44,8 +44,10 @@ const DashboardLayout = () => {
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
+  const { user, logout } = useAuth();
 
   const handleLogout = () => {
+    logout();
     navigate("/login");
   };
 
@@ -75,7 +77,7 @@ const DashboardLayout = () => {
             <h1 className="text-base font-bold text-sidebar-foreground truncate">
               CentralKitchen
             </h1>
-            <p className="text-xs text-sidebar-foreground/60">Franchise Store</p>
+            <p className="text-xs text-sidebar-foreground/60">{ROLE_LABELS[user?.role] || "Franchise Store"}</p>
           </div>
           <button
             onClick={() => setSidebarOpen(false)}
@@ -121,10 +123,10 @@ const DashboardLayout = () => {
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-sidebar-foreground truncate">
-                {currentUser.name}
+                {user?.name}
               </p>
               <p className="text-xs text-sidebar-foreground/60 truncate">
-                {currentUser.storeName}
+                {user?.storeName || ROLE_LABELS[user?.role]}
               </p>
             </div>
           </div>
@@ -152,7 +154,7 @@ const DashboardLayout = () => {
               </button>
               <div className="hidden sm:block">
                 <h2 className="text-sm font-medium text-muted-foreground">
-                  {currentUser.storeName}
+                  {user?.storeName || ROLE_LABELS[user?.role]}
                 </h2>
               </div>
             </div>
@@ -174,7 +176,7 @@ const DashboardLayout = () => {
                     <User className="w-4 h-4 text-primary" />
                   </div>
                   <span className="hidden sm:block text-sm font-medium">
-                    {currentUser.name}
+                    {user?.name}
                   </span>
                   <ChevronDown className="w-4 h-4 text-muted-foreground" />
                 </button>

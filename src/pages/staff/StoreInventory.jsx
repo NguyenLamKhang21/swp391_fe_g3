@@ -1,7 +1,8 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useOrders } from "@/contexts/OrderContext";
-import { currentUser, ingredients, formatCurrency } from "@/data/mockData";
+import { ingredients, formatCurrency } from "@/data/mockData";
+import { useAuth } from "@/contexts/AuthContext";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,11 +17,12 @@ import {
 
 const StoreInventory = () => {
   const { inventory } = useOrders();
+  const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [stockFilter, setStockFilter] = useState("all");
 
-  const storeInv = inventory[currentUser.storeId];
+  const storeInv = inventory[user?.storeId];
 
   const categories = useMemo(() => {
     const cats = [...new Set(ingredients.map((i) => i.category))];
@@ -81,7 +83,7 @@ const StoreInventory = () => {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Tồn kho cửa hàng</h1>
-          <p className="text-muted-foreground mt-1">{currentUser.storeName}</p>
+          <p className="text-muted-foreground mt-1">{user?.storeName}</p>
         </div>
         <Link to="/staff/orders/create">
           <Button className="gap-2">

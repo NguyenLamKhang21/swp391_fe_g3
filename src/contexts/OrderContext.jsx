@@ -4,7 +4,6 @@ import {
   ORDER_STATUS,
   storeInventory,
   ingredients,
-  currentUser,
 } from "@/data/mockData";
 
 const OrderContext = createContext(null);
@@ -21,14 +20,14 @@ export const OrderProvider = ({ children }) => {
   const [orders, setOrders] = useState(initialOrders);
   const [inventory, setInventory] = useState(storeInventory);
 
-  // Tạo đơn hàng mới
+  // Tạo đơn hàng mới - nhận thông tin user từ caller
   const createOrder = useCallback(
-    (orderData) => {
+    (orderData, userInfo) => {
       const newOrder = {
         id: `ORD-2026-${String(orders.length + 1).padStart(3, "0")}`,
-        storeId: currentUser.storeId,
-        storeName: currentUser.storeName,
-        createdBy: currentUser.name,
+        storeId: userInfo?.storeId || "",
+        storeName: userInfo?.storeName || "",
+        createdBy: userInfo?.name || "",
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         status: ORDER_STATUS.PENDING,

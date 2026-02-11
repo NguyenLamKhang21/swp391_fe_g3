@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { useOrders } from "@/contexts/OrderContext";
-import { currentUser, formatCurrency, ORDER_STATUS, STATUS_COLORS } from "@/data/mockData";
+import { useAuth } from "@/contexts/AuthContext";
+import { formatCurrency, ORDER_STATUS, STATUS_COLORS } from "@/data/mockData";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -17,8 +18,9 @@ import {
 
 const StaffDashboard = () => {
   const { orders, getOrderStats, getLowStockItems } = useOrders();
+  const { user } = useAuth();
   const stats = getOrderStats();
-  const lowStockItems = getLowStockItems(currentUser.storeId);
+  const lowStockItems = getLowStockItems(user?.storeId);
 
   // Đơn hàng gần đây (5 đơn)
   const recentOrders = orders.slice(0, 5);
@@ -68,7 +70,7 @@ const StaffDashboard = () => {
         <div>
           <h1 className="text-2xl font-bold text-foreground">Tổng quan</h1>
           <p className="text-muted-foreground mt-1">
-            Xin chào, {currentUser.name}! Đây là tình hình đơn hàng của bạn.
+            Xin chào, {user?.name}! Đây là tình hình đơn hàng của bạn.
           </p>
         </div>
         <Link to="/staff/orders/create">

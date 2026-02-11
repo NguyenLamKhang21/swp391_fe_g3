@@ -1,9 +1,9 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useOrders } from "@/contexts/OrderContext";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   ingredients,
-  currentUser,
   formatCurrency,
   PRIORITY_LEVELS,
   PRIORITY_COLORS,
@@ -37,6 +37,7 @@ import {
 const CreateOrder = () => {
   const navigate = useNavigate();
   const { createOrder, checkStoreInventory } = useOrders();
+  const { user } = useAuth();
 
   // Form state
   const [orderItems, setOrderItems] = useState([]);
@@ -71,7 +72,7 @@ const CreateOrder = () => {
 
   // Kiểm tra tồn kho cho mỗi nguyên liệu
   const getInventoryStatus = (ingredientId) => {
-    return checkStoreInventory(currentUser.storeId, ingredientId);
+    return checkStoreInventory(user?.storeId, ingredientId);
   };
 
   // Thêm nguyên liệu vào đơn hàng
@@ -154,7 +155,7 @@ const CreateOrder = () => {
         deliveryNotes,
         storageInstructions,
         totalAmount,
-      });
+      }, user);
       setIsSubmitting(false);
       setCreatedOrderId(newOrder.id);
       setShowSuccessDialog(true);
