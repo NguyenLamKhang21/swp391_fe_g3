@@ -27,7 +27,7 @@ const Login = () => {
         title: "Đăng nhập thành công",
         description: "Chào mừng bạn quay trở lại!",
       });
-      navigate("/");
+      navigate("/staff/dashboard");
     }, 1500);
   };
 
