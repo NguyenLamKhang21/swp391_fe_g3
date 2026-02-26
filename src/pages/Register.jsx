@@ -6,6 +6,8 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Eye, EyeOff, ChefHat, Store, Truck, Users } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { createUser } from "@/api/authAPI";
+import { toast } from "react-toastify";
 
 const Register = () => {
   const [formData, setFormData] = useState({
@@ -19,7 +21,6 @@ const Register = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [agreeTerms, setAgreeTerms] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const { toast } = useToast();
   const navigate = useNavigate();
 
   const handleChange = (e) => {
@@ -35,34 +36,41 @@ const Register = () => {
 
     // Validation
     if (formData.password !== formData.confirmPassword) {
-      toast({
-        title: "Lỗi",
-        description: "Mật khẩu xác nhận không khớp!",
-        variant: "destructive",
-      });
+      toast.error("Mật khẩu xác nhận không khớp!");
       return;
     }
 
     if (!agreeTerms) {
-      toast({
-        title: "Lỗi",
-        description: "Vui lòng đồng ý với điều khoản sử dụng!",
-        variant: "destructive",
-      });
+      toast.error("Vui lòng đồng ý với điều khoản sử dụng!");
       return;
     }
 
     setIsLoading(true);
 
-    // Simulate registration - replace with actual auth logic
-    setTimeout(() => {
-      setIsLoading(false);
-      toast({
-        title: "Đăng ký thành công",
-        description: "Tài khoản của bạn đã được tạo!",
-      });
+    try {
+      const payload = {
+        fullName: formData.fullName,
+        email: formData.email,
+        phone: formData.phone,
+        password: formData.password,
+        idRole: 0,
+      };
+
+      const res = await createUser(payload);
+
+      const { token, refreshToken } = res.data.data;
+
+      localStorage.setItem("accessToken", token);
+      localStorage.setItem("refreshToken", refreshToken);
+
+      toast.success(res.data.message || "Tạo tài khoản thành công");
+
       navigate("/login");
-    }, 1500);
+    } catch (error) {
+      toast.error(error.response?.data?.messsage || "tạo tài khoản thất bại");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const features = [

@@ -5,7 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Eye, EyeOff, ChefHat, Store, Truck, Users } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { login } from "../api/authAPI";
+import { toast } from "react-toastify";
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -13,22 +14,39 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const { toast } = useToast();
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
 
-    // Simulate login - replace with actual auth logic
-    setTimeout(() => {
+    try {
+      const res = await login({ email, password });
+
+      console.log("response: ", res.data);
+
+      //lấy token từ backend
+      const loginData = res.data.data;
+
+      localStorage.setItem("token", loginData.token);
+      localStorage.setItem("refreshToken", loginData.refreshToken);
+      localStorage.setItem("role", loginData.role);
+      localStorage.setItem("email", loginData.email);
+      localStorage.setItem("userId", loginData.userId);
+
+      toast.success("Đăng nhập thành công!");
+
+      if (loginData.role == "ADMIN") {
+        navigate("/admin");
+      } else {
+        navigate("/store");
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error("Đăng nhập thất bại!");
+    } finally {
       setIsLoading(false);
-      toast({
-        title: "Đăng nhập thành công",
-        description: "Chào mừng bạn quay trở lại!",
-      });
-      navigate("/");
-    }, 1500);
+    }
   };
 
   const features = [
@@ -77,8 +95,8 @@ const Login = () => {
             <div>
               <h2 className="text-4xl xl:text-5xl font-bold text-white leading-tight">
                 Hệ thống Quản lý
-                <span className="block text-primary">Bếp Trung Tâm</span>
-                & Cửa hàng Franchise
+                <span className="block text-primary">Bếp Trung Tâm</span>& Cửa
+                hàng Franchise
               </h2>
               <p className="mt-4 text-lg text-white/70 max-w-lg">
                 Giải pháp tập trung giúp đồng bộ vận hành, kiểm soát chất lượng

@@ -107,7 +107,214 @@ All colors MUST be HSL.
   .login-hero-gradient {
     background: linear-gradient(135deg, hsl(215 25% 20%) 0%, hsl(222 47% 8%) 50%, hsl(24 30% 15%) 100%);
   }
+
+  /* nên xem lại */
+
+  /* ── Admin Sidebar ── */
+  .admin-sidebar {
+    background: hsl(var(--sidebar-background));
+    color: hsl(var(--sidebar-foreground));
+    flex-shrink: 0;
+  }
+
+  .admin-sidebar-brand {
+    background: var(--gradient-primary);
+  }
+
+  .sidebar-nav-item {
+    user-select: none;
+  }
+
+  /* ── Admin Topbar ── */
+  .admin-topbar {
+    background: hsl(var(--card));
+    border-bottom: 1px solid hsl(var(--border));
+    box-shadow: 0 1px 3px hsl(222 47% 11% / 0.06);
+  }
+
+  .admin-search-bar {
+    background: hsl(var(--muted));
+    border: 1px solid hsl(var(--border));
+    transition: border-color 0.2s;
+  }
+
+  .admin-search-bar:focus-within {
+    border-color: hsl(var(--primary));
+    box-shadow: 0 0 0 3px hsl(var(--primary) / 0.12);
+  }
+
+  /* ── Profile Avatar ── */
+  .admin-avatar {
+    background: var(--gradient-primary);
+  }
+
+  /* ── Profile Dropdown ── */
+  .admin-dropdown {
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--border));
+  }
+
+  /* ── Generic admin card ── */
+  .admin-card {
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--border));
+    box-shadow: var(--shadow-card);
+  }
+
+  /* ── Welcome Banner ── */
+  .admin-welcome-banner {
+    background: linear-gradient(135deg, hsl(215 25% 27%) 0%, hsl(222 47% 11%) 60%, hsl(24 50% 20%) 100%);
+  }
+
+  /* ── Stat Cards ── */
+  .stat-card {
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--border));
+    box-shadow: var(--shadow-card);
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+
+  .stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-elevated);
+  }
+
+  /* Blue variant */
+  .stat-card-blue .stat-card-icon {
+    background: hsl(214 100% 95%);
+    color: hsl(214 95% 45%);
+  }
+
+  /* Orange variant */
+  .stat-card-orange .stat-card-icon {
+    background: hsl(24 100% 93%);
+    color: hsl(24 95% 45%);
+  }
+
+  /* Purple variant */
+  .stat-card-purple .stat-card-icon {
+    background: hsl(270 100% 95%);
+    color: hsl(270 80% 50%);
+  }
+
+  /* Green variant */
+  .stat-card-green .stat-card-icon {
+    background: hsl(142 70% 92%);
+    color: hsl(142 70% 35%);
+  }
+
+  /* ── Data Table ── */
+  .admin-table-header {
+    background: hsl(var(--muted));
+  }
+
+  .admin-table-row {
+    transition: background-color 0.15s;
+    animation: row-in 0.3s ease both;
+  }
+
+  .admin-table-row:hover {
+    background: hsl(var(--muted) / 0.6);
+  }
+
+  /* ── Status Badges ── */
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 10px;
+    border-radius: 9999px;
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .badge-delivered {
+    background: hsl(142 70% 92%);
+    color: hsl(142 70% 28%);
+  }
+
+  .badge-shipping {
+    background: hsl(214 100% 93%);
+    color: hsl(214 80% 38%);
+  }
+
+  .badge-pending {
+    background: hsl(40 100% 92%);
+    color: hsl(32 90% 38%);
+  }
+
+  .badge-cancelled {
+    background: hsl(0 84% 93%);
+    color: hsl(0 70% 40%);
+  }
+
+  /* ── Animations ── */
+  .animate-fade-in {
+    animation: fade-in 0.4s ease both;
+  }
+
+  /* ── User Management — shared input style ── */
+  .um-input {
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+    border-radius: var(--radius-md);
+    border: 1px solid hsl(var(--border));
+    background: hsl(var(--muted) / 0.5);
+    color: hsl(var(--foreground));
+    font-size: 0.875rem;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    outline: none;
+  }
+
+  .um-input::placeholder {
+    color: hsl(var(--muted-foreground));
+  }
+
+  .um-input:focus {
+    border-color: hsl(var(--primary));
+    box-shadow: 0 0 0 3px hsl(var(--primary) / 0.12);
+    background: hsl(var(--card));
+  }
+
+  /* ── Role badges — match `roles` table IDs 1-5 ── */
+  .badge-role-admin {
+    background: hsl(270 100% 95%);
+    color: hsl(270 80% 40%);
+  }
+
+  .badge-role-supply {
+    background: hsl(180 60% 92%);
+    color: hsl(180 70% 28%);
+  }
+
+  .badge-role-kitchen {
+    background: hsl(24 100% 93%);
+    color: hsl(24 95% 40%);
+  }
+
+  .badge-role-manager {
+    background: hsl(230 100% 95%);
+    color: hsl(230 80% 45%);
+  }
+
+  .badge-role-franchise {
+    background: hsl(340 80% 94%);
+    color: hsl(340 75% 38%);
+  }
 }
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes row-in {
+  from { opacity: 0; transform: translateX(-8px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+/* nên xem lại phía trên */
+/* this is  */
 
 @theme inline {
   --color-border: hsl(var(--border));
