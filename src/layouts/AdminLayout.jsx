@@ -25,6 +25,7 @@ const adminNavItems = [
   {
     section: "Quản lý",
     items: [
+      //khúc này chưa rõ lắm
       { label: "User Management", icon: Users, to: "/admin/users" },
     ],
   },
@@ -41,7 +42,7 @@ const adminNavItems = [
 
 const adminPageTitles = {
   "/admin":           "Dashboard",
-  "/admin/users":     "User Management",
+  "/admin/users":     "User Management", //why??????
   "/admin/orders":    "Quản lý đơn hàng",
   "/admin/kitchen":   "Xử lý đơn hàng — Bếp Trung Tâm",
   "/admin/inventory": "Tồn kho & Nguyên liệu",

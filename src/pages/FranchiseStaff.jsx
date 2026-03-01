@@ -1,10 +1,11 @@
-const StorePage = () => {
+
+const FranchiseStaff = () => {
   return (
     <div>
-      <h1>Store page</h1>
+      <h1>FranchiseStaff</h1>
       <p>Nếu bạn thấy trang này thì okie.</p>
     </div>
   );
 };
 
-export default StorePage;
+export default FranchiseStaff;

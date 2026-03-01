@@ -6,10 +6,12 @@ import AdminLayout from "./layouts/AdminLayout";
 // Admin pages
 
 import AdminDashboard  from "./pages/AdminDashboard";
-import UserManagement  from "./pages/UserManagement"; //huh?
+import UserManagement from "./pages/UserManagement"; //huh?
+
 
 // Other pages
-import StorePage from "./pages/StorePage";
+import FranchiseStaffLayout from "./layouts/FranchiseStaffLayout";
+import FranchiseStaff from "./pages/FranchiseStaff";
 
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
@@ -62,7 +64,15 @@ const App = () => (
       </Route>
 
       {/* ── Non-admin routes ──────────────────────────────────────────── */}
-      <Route path="/store" element={<StorePage />} />
+      <Route path="/franchiseStaff"
+        element={
+          <RequireAuth roles={["FRANCHISE_STAFF"]}>
+            <FranchiseStaffLayout />
+          </RequireAuth>
+          }
+      >
+        <Route path="inventory-ordering" element={<FranchiseStaff />} />
+        </Route>
     </Routes>
 
     <ToastContainer position="top-right" autoClose={2500} />

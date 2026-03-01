@@ -36,10 +36,15 @@ const Login = () => {
 
       toast.success("Đăng nhập thành công!");
 
-      if (loginData.role == "ADMIN") {
+
+      //thêm các path phân theo role khi login
+      if (loginData.role === "ADMIN") {
         navigate("/admin");
+      } else if (loginData.role === "FRANCHISE_STAFF") {
+        navigate("/franchiseStaff");
       } else {
-        navigate("/store");
+        // Fallback – show a toast so unknown roles are visible
+        toast.warn(`Vai trò '${loginData.role}' chưa có trang riêng.`);
       }
     } catch (error) {
       console.error(error);
