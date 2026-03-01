@@ -1,13 +1,12 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Login from "./pages/Login";
-import Register from "./pages/Register";
 import RequireAuth from "./components/ui/RequireAuth";
 import AdminLayout from "./layouts/AdminLayout";
 
 // Admin pages
 
 import AdminDashboard  from "./pages/AdminDashboard";
-import UserManagement  from "./pages/UserManagement";
+import UserManagement  from "./pages/UserManagement"; //huh?
 
 // Other pages
 import StorePage from "./pages/StorePage";
@@ -21,7 +20,7 @@ const App = () => (
       {/* ── Public routes ─────────────────────────────────────────────── */}
       <Route path="/"         element={<Login />} />
       <Route path="/login"    element={<Login />} />
-      <Route path="/register" element={<Register />} />
+    
       
 
       {/*
@@ -57,7 +56,7 @@ const App = () => (
         <Route index element={<AdminDashboard />} />
 
         {/* /admin/users  → User Management (ADMIN only — protected by parent route) */}
-        <Route path="users" element={<UserManagement />} />
+        <Route path="users" element={<UserManagement />} /> 
 
         {/* 👇 Add more pages here following the same pattern */}
       </Route>

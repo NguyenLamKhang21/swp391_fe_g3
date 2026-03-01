@@ -231,18 +231,6 @@ const Login = () => {
             </Button>
           </form>
 
-          {/* Help Text */}
-          <div className="text-center">
-            <p className="text-sm text-muted-foreground">
-              Bạn chưa có tài khoản?{" "}
-              <Link
-                to="/register"
-                className="text-primary font-medium hover:text-primary/80 transition-colors"
-              >
-                Đăng ký ngay
-              </Link>
-            </p>
-          </div>
 
           {/* Divider */}
           <div className="relative">
