@@ -42,6 +42,8 @@ const Login = () => {
         navigate("/admin");
       } else if (loginData.role === "FRANCHISE_STAFF") {
         navigate("/franchiseStaff");
+      } else if (loginData.role === "SUPPLY_COORDINATOR") {
+        navigate("/supply-coordinator");
       } else {
         // Fallback – show a toast so unknown roles are visible
         toast.warn(`Vai trò '${loginData.role}' chưa có trang riêng.`);

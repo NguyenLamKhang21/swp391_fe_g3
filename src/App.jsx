@@ -9,9 +9,13 @@ import AdminDashboard  from "./pages/AdminDashboard";
 import UserManagement from "./pages/UserManagement"; //huh?
 
 
-// Other pages
+// Franchise Staff pages
 import FranchiseStaffLayout from "./layouts/FranchiseStaffLayout";
 import FranchiseStaff from "./pages/FranchiseStaff";
+
+// Supply Coordinator pages
+import SupplyCoordinatorLayout from "./layouts/SupplyCoordinatorLayout";
+import SupplyCoordinatorOrders from "./pages/SupplyCoordinatorOrders";
 
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
@@ -63,7 +67,7 @@ const App = () => (
         {/* 👇 Add more pages here following the same pattern */}
       </Route>
 
-      {/* ── Non-admin routes ──────────────────────────────────────────── */}
+      {/* ── Franchise Staff routes ─────────────────────────────────────── */}
       <Route path="/franchiseStaff"
         element={
           <RequireAuth roles={["FRANCHISE_STAFF"]}>
@@ -72,7 +76,20 @@ const App = () => (
           }
       >
         <Route path="inventory-ordering" element={<FranchiseStaff />} />
-        </Route>
+      </Route>
+
+      {/* ── Supply Coordinator routes ──────────────────────────────────── */}
+      <Route
+        path="/supply-coordinator"
+        element={
+          <RequireAuth roles={["SUPPLY_COORDINATOR"]}>
+            <SupplyCoordinatorLayout />
+          </RequireAuth>
+        }
+      >
+        <Route index element={<SupplyCoordinatorOrders />} />
+        <Route path="orders" element={<SupplyCoordinatorOrders />} />
+      </Route>
     </Routes>
 
     <ToastContainer position="top-right" autoClose={2500} />

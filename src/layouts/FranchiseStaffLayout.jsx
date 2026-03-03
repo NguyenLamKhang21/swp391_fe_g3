@@ -9,6 +9,7 @@ const franchiseStaffNavItem = [
         items: [
             { label: "inventory & ordering", icon: Package, to: "/franchiseStaff/inventory-ordering" }
         ]
+        
     }
 ];
 
