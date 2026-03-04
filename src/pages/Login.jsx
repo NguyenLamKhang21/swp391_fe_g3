@@ -34,6 +34,16 @@ const Login = () => {
       localStorage.setItem("email", loginData.email);
       localStorage.setItem("userId", loginData.userId);
 
+      // Persist franchise store info so FranchiseStaff page can auto-read storeId
+      if (loginData.role === "FRANCHISE_STAFF" && loginData.franchiseStoreInfo) {
+        localStorage.setItem(
+          "franchiseStoreInfo",
+          JSON.stringify(loginData.franchiseStoreInfo)
+        );
+      } else {
+        localStorage.removeItem("franchiseStoreInfo");
+      }
+
       toast.success("Đăng nhập thành công!");
 
 

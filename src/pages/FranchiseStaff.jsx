@@ -10,7 +10,6 @@ const PAYMENT_OPTIONS = [
 ];
 
 const EMPTY_FORM = {
-  storeId:       "",
   paymentOption: "PAY_AFTER_ORDER",
   note:          "",
   foodItem:      "",
@@ -24,7 +23,17 @@ const FranchiseStaff = () => {
   const [createdOrders, setCreatedOrders] = useState([]);
   const [lastStoreId,   setLastStoreId]   = useState("");
 
-  
+  // Read store info from localStorage (set at login for FRANCHISE_STAFF)
+  const storeInfo = (() => {
+    try {
+      return JSON.parse(localStorage.getItem("franchiseStoreInfo") || "null");
+    } catch {
+      return null;
+    }
+  })();
+  const autoStoreId   = storeInfo?.storeId   ?? "";
+  const autoStoreName = storeInfo?.storeName  ?? autoStoreId;
+
   const fetchOrders = async (storeId) => {
     try {
       const res = await getOrdersByStore(storeId);
@@ -33,6 +42,12 @@ const FranchiseStaff = () => {
       toast.error("Cannot fetch orders for store " + storeId);
     }
   };
+  // Fetch real pending orders from the API for that store
+  useEffect(() => {
+    if (autoStoreId) {
+      fetchOrders(autoStoreId);
+    }
+  }, [autoStoreId]);
 
   /* ── handlers ── */
   const handleChange = (e) => {
@@ -46,30 +61,27 @@ const FranchiseStaff = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!form.storeId.trim()) { toast.error("Please enter a Store ID.");   return; }
+    if (!autoStoreId) { toast.error("No store associated with your account."); return; }
     if (!form.foodItem.trim()) { toast.error("Please enter a Food Item.");  return; }
     if (form.quantity < 1)    { toast.error("Quantity must be at least 1."); return; }
 
     const payload = {
-      storeId: form.storeId,
+      storeId: autoStoreId,
       paymentOption: form.paymentOption,
-      orderDetails: [
-        {
-          note: form.note,
+      note: form.note,
+      orderDetail: {
           items: [
-            {
-              foodItem: form.foodItem,
-              quantity: form.quantity,
-            },
-          ],
+        {
+          centralFoodId: form.foodItem, // đổi tên field
+          quantity: form.quantity,
         },
       ],
+      }
     };
 
     try {
       setLoading(true);
-      // Capture storeId BEFORE resetting the form
-      const submittedStoreId = form.storeId;
+      const submittedStoreId = autoStoreId;
 
       await API.post("/orders", payload);
 
@@ -120,22 +132,18 @@ const FranchiseStaff = () => {
 
         <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-5">
 
-          {/* Store ID */}
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium text-foreground" htmlFor="fs-storeId">
-              Store ID <span className="text-destructive">*</span>
-            </label>
-            <div className="relative">
-              <Store className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-              <input
-                id="fs-storeId"
-                name="storeId"
-                value={form.storeId}
-                onChange={handleChange}
-                placeholder="e.g. FR_001"
-                required
-                className="um-input pl-10"
-              />
+          {/* Store ID — auto-populated from login, displayed as read-only badge */}
+          <div className="space-y-1.5 md:col-span-2">
+            <label className="text-sm font-medium text-foreground">Store</label>
+            <div className="flex items-center gap-3 px-4 py-2.5 rounded-lg border border-border bg-muted/50">
+              <Store className="w-4 h-4 text-primary flex-shrink-0" />
+              <div>
+                <p className="text-sm font-semibold text-foreground">{autoStoreName}</p>
+                {autoStoreId && autoStoreId !== autoStoreName && (
+                  <p className="text-xs text-muted-foreground">{autoStoreId}</p>
+                )}
+              </div>
+              <span className="ml-auto text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary font-semibold">Auto-linked</span>
             </div>
           </div>
 
@@ -256,7 +264,7 @@ const FranchiseStaff = () => {
         <div className="admin-card rounded-xl overflow-hidden">
           <div className="px-6 py-4 border-b border-border flex items-center justify-between">
             <div>
-              <h3 className="text-base font-semibold text-foreground">Pending Orders — {lastStoreId}</h3>
+              <h3 className="text-base font-semibold text-foreground">Pending Orders — {autoStoreName || lastStoreId}</h3>
             </div>
             <span className="badge badge-delivered">{createdOrders.length} pending</span>
           </div>
