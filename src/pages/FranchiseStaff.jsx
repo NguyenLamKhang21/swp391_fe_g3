@@ -2,18 +2,24 @@ import { useState, useEffect } from "react";
 import { ShoppingCart, Store, CreditCard, FileText, Utensils, Hash, CheckCircle, Loader2, ClipboardList } from "lucide-react";
 import { toast } from "react-toastify";
 import API from "../api/axios";
-import { getOrdersByStore } from "../api/authAPI"; 
+import { getOrdersByStore, getCentralKitchenFood } from "../api/authAPI";
 
 const PAYMENT_OPTIONS = [
   { value: "PAY_AFTER_ORDER",  label: "Pay After Order"  },
   { value: "PAY_BEFORE_ORDER", label: "Pay Before Order" },
 ];
 
+const PAYMENT_METHOD_OPTIONS = [
+  { value: "CASH",          label: "Cash"          },
+  { value: "CREDIT", label: "Bank Transfer" },
+];
+
 const EMPTY_FORM = {
-  paymentOption: "PAY_AFTER_ORDER",
-  note:          "",
-  foodItem:      "",
-  quantity:      1,
+  paymentOption:  "PAY_AFTER_ORDER",
+  paymentMethod:  "CASH",
+  note:           "",
+  foodItem:       "",
+  quantity:       1,
 };
 
 /* ══════════════════════════════════════════════════════════════════════ */
@@ -21,7 +27,8 @@ const FranchiseStaff = () => {
   const [form,          setForm]          = useState(EMPTY_FORM);
   const [loading,       setLoading]       = useState(false);
   const [createdOrders, setCreatedOrders] = useState([]);
-  const [lastStoreId,   setLastStoreId]   = useState("");
+  const [lastStoreId, setLastStoreId] = useState("");
+  const [foods, setFoods] = useState([]);
 
   // Read store info from localStorage (set at login for FRANCHISE_STAFF)
   const storeInfo = (() => {
@@ -49,6 +56,19 @@ const FranchiseStaff = () => {
     }
   }, [autoStoreId]);
 
+  //fetch food to show in foodItems dropdown menu
+  useEffect(() => {
+    const fetchFoods = async ()=> {
+      try {
+        const res = await getCentralKitchenFood();
+        setFoods(res.data ?? []);
+      } catch (err) {
+        toast.error("Cannot fetch food list");
+      }
+    }
+    fetchFoods();
+  }, [])
+
   /* ── handlers ── */
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -66,17 +86,18 @@ const FranchiseStaff = () => {
     if (form.quantity < 1)    { toast.error("Quantity must be at least 1."); return; }
 
     const payload = {
-      storeId: autoStoreId,
+      storeId:       autoStoreId,
       paymentOption: form.paymentOption,
-      note: form.note,
+      paymentMethod: form.paymentMethod,
+      note:          form.note,
       orderDetail: {
-          items: [
-        {
-          centralFoodId: form.foodItem, // đổi tên field
-          quantity: form.quantity,
-        },
-      ],
-      }
+        items: [
+          {
+            centralFoodId: form.foodItem,
+            quantity:      form.quantity,
+          },
+        ],
+      },
     };
 
     try {
@@ -154,15 +175,24 @@ const FranchiseStaff = () => {
             </label>
             <div className="relative">
               <Utensils className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-              <input
+              <select
                 id="fs-foodItem"
                 name="foodItem"
                 value={form.foodItem}
                 onChange={handleChange}
-                placeholder="e.g. MY_V_CUA"
                 required
                 className="um-input pl-10"
-              />
+              >
+                <option value="">-- Select Food</option>
+
+                {foods
+                  .filter(f => f.centralFoodStatus === "AVAILABLE")
+                  .map(f => (
+                    <option key={f.foodId} value={f.foodId}>
+                      {f.foodName}
+                    </option>
+                  ))}
+              </select>
             </div>
           </div>
 
@@ -227,6 +257,39 @@ const FranchiseStaff = () => {
                     name="paymentOption"
                     value={opt.value}
                     checked={form.paymentOption === opt.value}
+                    onChange={handleChange}
+                    className="sr-only"
+                  />
+                  <CreditCard className="w-4 h-4" />
+                  {opt.label}
+                </label>
+              ))}
+            </div>
+          </div>
+
+          {/* Payment Method */}
+          <div className="space-y-1.5 md:col-span-2">
+            <label className="text-sm font-medium text-foreground">
+              Payment Method <span className="text-destructive">*</span>
+            </label>
+            <div className="flex flex-wrap gap-3">
+              {PAYMENT_METHOD_OPTIONS.map((opt) => (
+                <label
+                  key={opt.value}
+                  className={`
+                    flex items-center gap-2 px-4 py-2.5 rounded-lg border cursor-pointer
+                    transition-all duration-200 select-none
+                    ${form.paymentMethod === opt.value
+                      ? "border-primary bg-primary/10 text-primary font-semibold"
+                      : "border-border bg-muted/50 text-muted-foreground hover:border-primary/50 hover:text-foreground"
+                    }
+                  `}
+                >
+                  <input
+                    type="radio"
+                    name="paymentMethod"
+                    value={opt.value}
+                    checked={form.paymentMethod === opt.value}
                     onChange={handleChange}
                     className="sr-only"
                   />

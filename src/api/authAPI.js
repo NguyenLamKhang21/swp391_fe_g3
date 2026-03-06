@@ -9,3 +9,5 @@ export const createOrder = (data) => API.post("/orders", data);
 export const getOrdersByStore = (storeId) => API.get(`/orders/store/${storeId}/pending`);
 
 export const getAllOrders = () => API.get("/orders");
+
+export const getCentralKitchenFood = () => API.get("/central_foods");
