@@ -17,6 +17,10 @@ import FranchiseStaff from "./pages/FranchiseStaff";
 import SupplyCoordinatorLayout from "./layouts/SupplyCoordinatorLayout";
 import SupplyCoordinatorOrders from "./pages/SupplyCoordinatorOrders";
 
+// Central Kitchen pages
+import CentralKitchenLayout from "./layouts/CentralKitchenLayout";
+import CentralKitchenOrders from "./pages/CentralKitchenOrders";
+
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
@@ -90,6 +94,19 @@ const App = () => (
       >
         <Route index element={<SupplyCoordinatorOrders />} />
         <Route path="orders" element={<SupplyCoordinatorOrders />} />
+      </Route>
+
+      {/* ── Central Kitchen routes ─────────────────────────────────────── */}
+      <Route
+        path="/central-kitchen"
+        element={
+          <RequireAuth roles={["CENTRAL_KITCHEN_STAFF"]}>
+            <CentralKitchenLayout />
+          </RequireAuth>
+        }
+      >
+        <Route index element={<CentralKitchenOrders />} />
+        <Route path="orders" element={<CentralKitchenOrders />} />
       </Route>
     </Routes>
 
