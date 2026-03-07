@@ -6,8 +6,10 @@ export const createUser = (data) => API.post("/auth/create", data);
 
 export const createOrder = (data) => API.post("/orders", data);
 
-export const getOrdersByStore = (storeId) => API.get(`/orders/store/${storeId}/pending`);
+export const getOrdersByStore = (storeId) => API.get(`/orders/orders/${storeId}`);
 
 export const getAllOrders = () => API.get("/orders");
 
 export const getCentralKitchenFood = () => API.get("/central_foods");
+
+export const getOrderDetailByOrderId = (orderId) => API.get(`/orders/${orderId}/detail`);

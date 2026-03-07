@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
-import { ShoppingCart, Store, CreditCard, FileText, Utensils, Hash, CheckCircle, Loader2, ClipboardList } from "lucide-react";
+import { ShoppingCart, Store, CreditCard, FileText, Utensils, Hash, CheckCircle, Loader2, ClipboardList, ChevronDown, ChevronUp, Receipt } from "lucide-react";
 import { toast } from "react-toastify";
 import API from "../api/axios";
-import { getOrdersByStore, getCentralKitchenFood } from "../api/authAPI";
+import { getOrdersByStore, getCentralKitchenFood, getOrderDetailByOrderId } from "../api/authAPI";
 
 const PAYMENT_OPTIONS = [
   { value: "PAY_AFTER_ORDER",  label: "Pay After Order"  },
@@ -24,11 +24,14 @@ const EMPTY_FORM = {
 
 /* ══════════════════════════════════════════════════════════════════════ */
 const FranchiseStaff = () => {
-  const [form,          setForm]          = useState(EMPTY_FORM);
-  const [loading,       setLoading]       = useState(false);
-  const [createdOrders, setCreatedOrders] = useState([]);
-  const [lastStoreId, setLastStoreId] = useState("");
-  const [foods, setFoods] = useState([]);
+  const [form,            setForm]          = useState(EMPTY_FORM);
+  const [loading,         setLoading]       = useState(false);
+  const [createdOrders,   setCreatedOrders] = useState([]);
+  const [lastStoreId,     setLastStoreId]   = useState("");
+  const [foods,           setFoods]         = useState([]);
+  const [expandedOrderId, setExpandedOrderId] = useState(null);
+  const [orderDetails,    setOrderDetails]  = useState({});   // { [orderId]: detailObj } a cache map { [orderId]: detailObj } so the API is only called once per order
+  const [detailLoading,   setDetailLoading] = useState(null); // orderId being loaded tracks which row is currently fetching (to show a spinner)
 
   // Read store info from localStorage (set at login for FRANCHISE_STAFF)
   const storeInfo = (() => {
@@ -68,6 +71,28 @@ const FranchiseStaff = () => {
     }
     fetchFoods();
   }, [])
+
+  /* ── order detail toggle ── */
+  const toggleDetail = async (orderId) => {
+    // collapse if already open
+    if (expandedOrderId === orderId) {
+      setExpandedOrderId(null);
+      return;
+    }
+    setExpandedOrderId(orderId);
+    // return cached detail if already fetched
+    if (orderDetails[orderId]) return;
+    try {
+      setDetailLoading(orderId);
+      const res = await getOrderDetailByOrderId(orderId);
+      setOrderDetails((prev) => ({ ...prev, [orderId]: res.data }));
+    } catch {
+      toast.error(`Cannot load detail for order ${orderId}`);
+      setExpandedOrderId(null);
+    } finally {
+      setDetailLoading(null);
+    }
+  };
 
   /* ── handlers ── */
   const handleChange = (e) => {
@@ -327,9 +352,9 @@ const FranchiseStaff = () => {
         <div className="admin-card rounded-xl overflow-hidden">
           <div className="px-6 py-4 border-b border-border flex items-center justify-between">
             <div>
-              <h3 className="text-base font-semibold text-foreground">Pending Orders — {autoStoreName || lastStoreId}</h3>
+              <h3 className="text-base font-semibold text-foreground">Orders Status — {autoStoreName || lastStoreId}</h3>
             </div>
-            <span className="badge badge-delivered">{createdOrders.length} pending</span>
+            <span className="badge badge-delivered">{createdOrders.length} order{createdOrders.length !== 1 ? "s" : ""}</span>
           </div>
 
           <div className="overflow-x-auto">
@@ -342,33 +367,121 @@ const FranchiseStaff = () => {
                   <th className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">Priority</th>
                   <th className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">Payment</th>
                   <th className="px-6 py-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider">Status</th>
+                  <th className="px-6 py-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider">Details</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {createdOrders.map((o) => (
-                  <tr key={o.orderId} className="admin-table-row">
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full admin-avatar flex items-center justify-center text-primary-foreground text-xs font-bold flex-shrink-0">
-                          <ClipboardList className="w-4 h-4" />
-                        </div>
-                        <p className="font-medium text-foreground">{o.orderId}</p>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-foreground">{o.storeId}</td>
-                    <td className="px-6 py-4 text-muted-foreground">{o.orderDate ?? "—"}</td>
-                    <td className="px-6 py-4 text-foreground">{o.priorityLevel ?? "—"}</td>
-                    <td className="px-6 py-4">
-                      <span className="badge badge-pending">{o.paymentOption ?? "—"}</span>
-                    </td>
-                    <td className="px-6 py-4 text-center">
-                      <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-amber-600">
-                        <CheckCircle className="w-4 h-4" />
-                        {o.statusOrder}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
+                {createdOrders.map((o) => {
+                  const isExpanded = expandedOrderId === o.orderId;
+                  const isLoadingDetail = detailLoading === o.orderId;
+                  const detail = orderDetails[o.orderId];
+
+                  return (
+                    <>
+                      {/* ── Main row ── */}
+                      <tr key={o.orderId} className="admin-table-row">
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full admin-avatar flex items-center justify-center text-primary-foreground text-xs font-bold flex-shrink-0">
+                              <ClipboardList className="w-4 h-4" />
+                            </div>
+                            <p className="font-medium text-foreground">{o.orderId}</p>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-foreground">{o.storeId}</td>
+                        <td className="px-6 py-4 text-muted-foreground">{o.orderDate ?? "—"}</td>
+                        <td className="px-6 py-4 text-foreground">{o.priorityLevel ?? "—"}</td>
+                        <td className="px-6 py-4">
+                          <span className="badge badge-pending">{o.paymentOption ?? "—"}</span>
+                        </td>
+                        <td className="px-6 py-4 text-center">
+                          <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full ${
+                            o.statusOrder === "PENDING"    ? "bg-amber-100 text-amber-700" :
+                            o.statusOrder === "CANCELLED"  ? "bg-red-100 text-red-600" :
+                            o.statusOrder === "COMPLETED" || o.statusOrder === "DELIVERED" ? "bg-green-100 text-green-700" :
+                            o.statusOrder === "PROCESSING" ? "bg-blue-100 text-blue-700" :
+                            "bg-muted text-muted-foreground"
+                          }`}>
+                            <CheckCircle className="w-3.5 h-3.5" />
+                            {o.statusOrder ?? "—"}
+                          </span>
+                        </td>
+                        {/* Details toggle */}
+                        <td className="px-6 py-4 text-center">
+                          <button
+                            onClick={() => toggleDetail(o.orderId)}
+                            disabled={isLoadingDetail}
+                            className="inline-flex items-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-lg border border-primary/30 text-primary bg-primary/5 hover:bg-primary/15 transition-all duration-150 disabled:opacity-50"
+                          >
+                            {isLoadingDetail
+                              ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              : isExpanded
+                                ? <ChevronUp className="w-3.5 h-3.5" />
+                                : <ChevronDown className="w-3.5 h-3.5" />
+                            }
+                            {isExpanded ? "Hide" : "View"}
+                          </button>
+                        </td>
+                      </tr>
+
+                      {/* ── Expandable detail sub-row ── */}
+                      {isExpanded && (
+                        <tr key={`${o.orderId}-detail`}>
+                          <td colSpan={7} className="px-0 py-0 bg-muted/30 border-b border-border">
+                            <div className="px-8 py-5">
+                              {!detail ? (
+                                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                  <Loader2 className="w-4 h-4 animate-spin" /> Loading detail…
+                                </div>
+                              ) : (
+                                <div className="space-y-3">
+                                  {/* header row */}
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <Receipt className="w-4 h-4 text-primary" />
+                                    <span className="text-sm font-semibold text-foreground">Order Detail</span>
+                                    <span className="text-xs text-muted-foreground ml-1">#{detail.orderDetailId}</span>
+                                  </div>
+
+                                  {/* items mini-table */}
+                                  <div className="rounded-lg overflow-hidden border border-border">
+                                    <table className="w-full text-xs">
+                                      <thead>
+                                        <tr className="bg-muted/60">
+                                          <th className="px-4 py-2 text-left font-semibold text-muted-foreground uppercase tracking-wide">Food Item</th>
+                                          <th className="px-4 py-2 text-center font-semibold text-muted-foreground uppercase tracking-wide">Quantity</th>
+                                          <th className="px-4 py-2 text-right font-semibold text-muted-foreground uppercase tracking-wide">Unit Price</th>
+                                          <th className="px-4 py-2 text-right font-semibold text-muted-foreground uppercase tracking-wide">Subtotal</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody className="divide-y divide-border bg-background">
+                                        {detail.items?.map((item, idx) => (
+                                          <tr key={idx}>
+                                            <td className="px-4 py-2.5 font-medium text-foreground">{item.foodName}</td>
+                                            <td className="px-4 py-2.5 text-center text-muted-foreground">{item.quantity}</td>
+                                            <td className="px-4 py-2.5 text-right text-muted-foreground">{item.unitPrice?.toLocaleString()}</td>
+                                            <td className="px-4 py-2.5 text-right font-semibold text-foreground">{item.totalAmount?.toLocaleString()}</td>
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                      <tfoot>
+                                        <tr className="bg-primary/5 border-t border-primary/20">
+                                          <td colSpan={3} className="px-4 py-2.5 text-right text-xs font-bold text-foreground uppercase tracking-wide">Total</td>
+                                          <td className="px-4 py-2.5 text-right text-sm font-bold text-primary">
+                                            {detail.amount?.toLocaleString()}
+                                          </td>
+                                        </tr>
+                                      </tfoot>
+                                    </table>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </>
+                  );
+                })}
               </tbody>
             </table>
           </div>

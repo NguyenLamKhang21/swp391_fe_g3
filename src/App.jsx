@@ -75,6 +75,7 @@ const App = () => (
           </RequireAuth>
           }
       >
+        <Route index element={<FranchiseStaff />} />
         <Route path="inventory-ordering" element={<FranchiseStaff />} />
       </Route>
 
