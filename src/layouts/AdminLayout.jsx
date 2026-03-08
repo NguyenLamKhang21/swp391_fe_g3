@@ -48,7 +48,6 @@ const adminPageTitles = {
   "/admin/inventory": "Tồn kho & Nguyên liệu",
   "/admin/delivery":  "Điều phối & Giao nhận",
   "/admin/products":  "Sản phẩm",
-  "/admin/stores":    "Chuỗi cửa hàng",
   "/admin/analytics": "Thống kê",
   "/admin/settings":  "Cài đặt",
 };

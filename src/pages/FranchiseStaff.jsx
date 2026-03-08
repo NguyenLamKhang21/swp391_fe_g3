@@ -36,7 +36,7 @@ const FranchiseStaff = () => {
   // Read store info from localStorage (set at login for FRANCHISE_STAFF)
   const storeInfo = (() => {
     try {
-      return JSON.parse(localStorage.getItem("franchiseStoreInfo") || "null");
+      return JSON.parse(sessionStorage.getItem("franchiseStoreInfo") || "null");
     } catch {
       return null;
     }
@@ -449,7 +449,7 @@ const FranchiseStaff = () => {
                                         <tr className="bg-muted/60">
                                           <th className="px-4 py-2 text-left font-semibold text-muted-foreground uppercase tracking-wide">Food Item</th>
                                           <th className="px-4 py-2 text-center font-semibold text-muted-foreground uppercase tracking-wide">Quantity</th>
-                                          <th className="px-4 py-2 text-right font-semibold text-muted-foreground uppercase tracking-wide">Unit Price</th>
+                                          <th className="px-4 py-2 text-right font-semibold text-muted-foreground uppercase tracking-wide">Unit Price (VND)</th>
                                           <th className="px-4 py-2 text-right font-semibold text-muted-foreground uppercase tracking-wide">Subtotal</th>
                                         </tr>
                                       </thead>

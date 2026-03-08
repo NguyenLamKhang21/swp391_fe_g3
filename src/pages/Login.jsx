@@ -28,20 +28,20 @@ const Login = () => {
       //lấy token từ backend
       const loginData = res.data.data;
 
-      localStorage.setItem("token", loginData.token);
-      localStorage.setItem("refreshToken", loginData.refreshToken);
-      localStorage.setItem("role", loginData.role);
-      localStorage.setItem("email", loginData.email);
-      localStorage.setItem("userId", loginData.userId);
+      sessionStorage.setItem("token", loginData.token);
+      sessionStorage.setItem("refreshToken", loginData.refreshToken);
+      sessionStorage.setItem("role", loginData.role);
+      sessionStorage.setItem("email", loginData.email);
+      sessionStorage.setItem("userId", loginData.userId);
 
       // Persist franchise store info so FranchiseStaff page can auto-read storeId
       if (loginData.role === "FRANCHISE_STAFF" && loginData.franchiseStoreInfo) {
-        localStorage.setItem(
+        sessionStorage.setItem(
           "franchiseStoreInfo",
           JSON.stringify(loginData.franchiseStoreInfo)
         );
       } else {
-        localStorage.removeItem("franchiseStoreInfo");
+        sessionStorage.removeItem("franchiseStoreInfo");
       }
 
       toast.success("Đăng nhập thành công!");

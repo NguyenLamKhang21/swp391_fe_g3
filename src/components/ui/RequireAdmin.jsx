@@ -1,15 +1,15 @@
 import { Navigate } from "react-router-dom";
 
 const RequireAdmin = ({ children }) => {
-  const token = localStorage.getItem("token");
-  const role = localStorage.getItem("role");
+  const token = sessionStorage.getItem("token");
+  const role = sessionStorage.getItem("role");
 
   if (!token) {
     return <Navigate to={"/login"} replace />;
   }
 
   if (role !== "ADMIN") {
-    return <Navigate to="/store" replace />;
+    return <Navigate to="/login" replace />;
   }
 
   return children;

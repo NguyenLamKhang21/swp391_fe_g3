@@ -5,12 +5,12 @@ import { toast } from "react-toastify";
 
 const Topbar = ({ pageTitle }) => {
   const navigate = useNavigate();
-  const email = localStorage.getItem("email") || "admin@example.com";
-  const role = localStorage.getItem("role") || "ADMIN";
+  const email = sessionStorage.getItem("email") || "admin@example.com";
+  const role = sessionStorage.getItem("role") || "ADMIN";
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
   const handleLogout = () => {
-    localStorage.clear();
+    sessionStorage.clear();
     toast.info("Đã đăng xuất");
     navigate("/login");
   };
