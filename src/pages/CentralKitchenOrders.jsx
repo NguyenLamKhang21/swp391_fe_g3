@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { createPortal } from "react-dom";
 import {
   ChefHat, CheckCircle, Clock, Loader2, RefreshCw, Search,
   Package, Eye, X, Flame, Truck, AlertCircle, XCircle, MessageSquare,
@@ -305,36 +306,42 @@ const CentralKitchenOrders = () => {
       {/* ══════════════════════════════════════════════════════════════════
           ORDER DETAIL MODAL
           ══════════════════════════════════════════════════════════════════ */}
-      {selectedOrder && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={closeModal} />
+      {selectedOrder && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-8">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={closeModal} />
 
-          <div className="relative bg-background border border-border rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+          <div className="relative bg-background border border-border rounded-2xl shadow-2xl w-full max-w-2xl max-h-[80vh] flex flex-col animate-fade-in">
             {/* Modal header */}
-            <div className="sticky top-0 bg-background z-10 px-6 py-4 border-b border-border flex items-center justify-between">
+            <div className="flex-shrink-0 px-5 py-3 border-b border-border flex items-center justify-between rounded-t-2xl">
               <div>
-                <h3 className="text-lg font-bold text-foreground">
+                <h3 className="text-base font-bold text-foreground">
                   Đơn hàng — {selectedOrder.orderId}
                 </h3>
-                <p className="text-xs text-muted-foreground mt-0.5">
+                <p className="text-[11px] text-muted-foreground mt-0.5">
                   Store: {selectedOrder.storeId} · {selectedOrder.orderDate}
                 </p>
               </div>
-              <button onClick={closeModal} className="p-2 rounded-lg hover:bg-muted transition-colors">
-                <X className="w-5 h-5 text-muted-foreground" />
+              <button
+                onClick={closeModal}
+                className="p-2 rounded-lg bg-muted hover:bg-destructive hover:text-destructive-foreground transition-colors"
+                title="Đóng"
+              >
+                <X className="w-4 h-4" />
               </button>
             </div>
 
             {detailLoading ? (
-              <div className="p-12 flex flex-col items-center gap-4">
-                <Loader2 className="w-8 h-8 text-primary animate-spin" />
-                <p className="text-sm text-muted-foreground">Đang tải chi tiết...</p>
+              <div className="flex-1 flex items-center justify-center p-8">
+                <div className="flex flex-col items-center gap-3">
+                  <Loader2 className="w-7 h-7 text-primary animate-spin" />
+                  <p className="text-sm text-muted-foreground">Đang tải chi tiết...</p>
+                </div>
               </div>
             ) : (
-              <div className="p-6 space-y-6">
+              <div className="flex-1 overflow-y-auto p-5 space-y-4">
 
                 {/* ── Order info ── */}
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
                   {[
                     { label: "Order ID",  value: selectedOrder.orderId },
                     { label: "Store",     value: selectedOrder.storeId },
@@ -343,9 +350,9 @@ const CentralKitchenOrders = () => {
                     { label: "Payment",   value: selectedOrder.paymentOption },
                     { label: "Ngày đặt",  value: selectedOrder.orderDate ?? "—" },
                   ].map((f) => (
-                    <div key={f.label} className="bg-muted/50 rounded-lg p-3">
-                      <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">{f.label}</p>
-                      <p className="text-sm font-medium text-foreground mt-1">{f.value}</p>
+                    <div key={f.label} className="bg-muted/50 rounded-lg p-2">
+                      <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">{f.label}</p>
+                      <p className="text-xs font-medium text-foreground mt-0.5 truncate">{f.value}</p>
                     </div>
                   ))}
                 </div>
@@ -459,7 +466,8 @@ const CentralKitchenOrders = () => {
               </div>
             )}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

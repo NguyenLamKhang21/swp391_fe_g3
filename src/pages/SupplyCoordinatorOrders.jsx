@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { createPortal } from "react-dom";
 import {
   ClipboardList, CheckCircle, Clock, Loader2, RefreshCw, Search,
   XCircle, AlertCircle, X, Eye, ShieldAlert, Package, ArrowRight,
@@ -360,36 +361,42 @@ const SupplyCoordinatorOrders = () => {
       {/* ══════════════════════════════════════════════════════════════════
           ORDER DETAIL MODAL
           ══════════════════════════════════════════════════════════════════ */}
-      {selectedOrder && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={closeModal} />
+      {selectedOrder && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-8">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={closeModal} />
 
-          <div className="relative bg-background border border-border rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+          <div className="relative bg-background border border-border rounded-2xl shadow-2xl w-full max-w-2xl max-h-[80vh] flex flex-col animate-fade-in">
             {/* Modal header */}
-            <div className="sticky top-0 bg-background z-10 px-6 py-4 border-b border-border flex items-center justify-between">
+            <div className="flex-shrink-0 px-5 py-3 border-b border-border flex items-center justify-between rounded-t-2xl">
               <div>
-                <h3 className="text-lg font-bold text-foreground">
-                  Chi tiết đơn hàng — {selectedOrder.orderId}
+                <h3 className="text-base font-bold text-foreground">
+                  Chi tiết — {selectedOrder.orderId}
                 </h3>
-                <p className="text-xs text-muted-foreground mt-0.5">
+                <p className="text-[11px] text-muted-foreground mt-0.5">
                   Store: {selectedOrder.storeId} · {selectedOrder.orderDate}
                 </p>
               </div>
-              <button onClick={closeModal} className="p-2 rounded-lg hover:bg-muted transition-colors">
-                <X className="w-5 h-5 text-muted-foreground" />
+              <button
+                onClick={closeModal}
+                className="p-2 rounded-lg bg-muted hover:bg-destructive hover:text-destructive-foreground transition-colors"
+                title="Đóng"
+              >
+                <X className="w-4 h-4" />
               </button>
             </div>
 
             {detailLoading ? (
-              <div className="p-12 flex flex-col items-center gap-4">
-                <Loader2 className="w-8 h-8 text-primary animate-spin" />
-                <p className="text-sm text-muted-foreground">Đang tải chi tiết...</p>
+              <div className="flex-1 flex items-center justify-center p-8">
+                <div className="flex flex-col items-center gap-3">
+                  <Loader2 className="w-7 h-7 text-primary animate-spin" />
+                  <p className="text-sm text-muted-foreground">Đang tải chi tiết...</p>
+                </div>
               </div>
             ) : (
-              <div className="p-6 space-y-6">
+              <div className="flex-1 overflow-y-auto p-5 space-y-4">
 
                 {/* ── Section 1: Order info ── */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
                   {[
                     { label: "Order ID",  value: selectedOrder.orderId },
                     { label: "Store",     value: selectedOrder.storeId },
@@ -398,9 +405,9 @@ const SupplyCoordinatorOrders = () => {
                     { label: "Priority",  value: selectedOrder.priorityLevel ?? "—" },
                     { label: "Ngày đặt",  value: selectedOrder.orderDate ?? "—" },
                   ].map((f) => (
-                    <div key={f.label} className="bg-muted/50 rounded-lg p-3">
-                      <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">{f.label}</p>
-                      <p className="text-sm font-medium text-foreground mt-1">{f.value}</p>
+                    <div key={f.label} className="bg-muted/50 rounded-lg p-2">
+                      <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">{f.label}</p>
+                      <p className="text-xs font-medium text-foreground mt-0.5 truncate">{f.value}</p>
                     </div>
                   ))}
                 </div>
@@ -449,25 +456,17 @@ const SupplyCoordinatorOrders = () => {
                 )}
 
                 {/* ── Section 3: Kiểm tra nợ ── */}
-                <div className={`rounded-xl p-4 border ${hasDebt ? "border-red-200 bg-red-50" : "border-green-200 bg-green-50"}`}>
-                  <div className="flex items-start gap-3">
-                    <ShieldAlert className={`w-5 h-5 mt-0.5 ${hasDebt ? "text-red-600" : "text-green-600"}`} />
-                    <div className="flex-1">
-                      <h4 className={`text-sm font-semibold ${hasDebt ? "text-red-700" : "text-green-700"}`}>
-                        Kiểm tra công nợ — {selectedOrder.storeId}
-                      </h4>
-                      {hasDebt ? (
-                        <p className="text-xs text-red-600 mt-1">
-                          Store này có đơn hàng chưa thanh toán. Nên từ chối đơn hoặc yêu cầu thanh toán trước.
-                        </p>
-                      ) : (
-                        <p className="text-xs text-green-600 mt-1">
-                          Không phát hiện công nợ. Store đủ điều kiện để xử lý đơn hàng.
-                        </p>
-                      )}
+                <div className={`rounded-lg p-3 border ${hasDebt ? "border-red-200 bg-red-50" : "border-green-200 bg-green-50"}`}>
+                  <div className="flex items-center gap-2">
+                    <ShieldAlert className={`w-4 h-4 flex-shrink-0 ${hasDebt ? "text-red-600" : "text-green-600"}`} />
+                    <div className="flex-1 min-w-0">
+                      <p className={`text-xs font-semibold ${hasDebt ? "text-red-700" : "text-green-700"}`}>
+                        Công nợ — {selectedOrder.storeId}:
+                        {hasDebt ? " Có nợ chưa thanh toán" : " Không nợ"}
+                      </p>
                       {storeOrders.length > 0 && (
-                        <p className="text-[10px] text-muted-foreground mt-2">
-                          Tổng {storeOrders.length} đơn từ store này trong hệ thống.
+                        <p className="text-[10px] text-muted-foreground mt-0.5">
+                          {storeOrders.length} đơn từ store này trong hệ thống.
                         </p>
                       )}
                     </div>
@@ -475,16 +474,16 @@ const SupplyCoordinatorOrders = () => {
                 </div>
 
                 {/* ── Section 4: Kiểm tra kho Central Food ── */}
-                <div className="border border-border rounded-xl overflow-hidden">
-                  <div className="px-4 py-3 bg-muted/50 border-b border-border flex items-center justify-between">
-                    <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                      <Package className="w-4 h-4 text-primary" />
+                <div className="border border-border rounded-lg overflow-hidden">
+                  <div className="px-3 py-2 bg-muted/50 border-b border-border flex items-center justify-between">
+                    <h4 className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                      <Package className="w-3.5 h-3.5 text-primary" />
                       Kho Central Food
                     </h4>
                     <span className="text-[10px] text-muted-foreground">{centralFoods.length} sản phẩm</span>
                   </div>
                   {centralFoods.length > 0 ? (
-                    <div className="overflow-x-auto max-h-48 overflow-y-auto">
+                    <div className="overflow-x-auto max-h-36 overflow-y-auto">
                       <table className="w-full text-sm">
                         <thead className="sticky top-0">
                           <tr className="admin-table-header">
@@ -495,12 +494,12 @@ const SupplyCoordinatorOrders = () => {
                         </thead>
                         <tbody className="divide-y divide-border">
                           {centralFoods.map((f, i) => (
-                            <tr key={f.id ?? i} className="admin-table-row">
-                              <td className="px-4 py-2 font-medium text-foreground">{f.foodName ?? f.name ?? "—"}</td>
-                              <td className="px-4 py-2 text-foreground">{f.quantity ?? f.stock ?? "—"}</td>
+                            <tr key={f.foodId ?? i} className="admin-table-row">
+                              <td className="px-4 py-2 font-medium text-foreground">{f.foodName ?? "—"}</td>
+                              <td className="px-4 py-2 text-foreground">{f.amount ?? "—"}</td>
                               <td className="px-4 py-2">
-                                <span className={`badge ${(f.quantity ?? f.stock ?? 0) > 0 ? "badge-delivered" : "badge-cancelled"}`}>
-                                  {(f.quantity ?? f.stock ?? 0) > 0 ? "Còn hàng" : "Hết hàng"}
+                                <span className={`badge ${(f.amount ?? 0) > 0 ? "badge-delivered" : "badge-cancelled"}`}>
+                                  {(f.amount ?? 0) > 0 ? "Còn hàng" : "Hết hàng"}
                                 </span>
                               </td>
                             </tr>
@@ -517,22 +516,22 @@ const SupplyCoordinatorOrders = () => {
 
                 {/* ── Section 5: Actions ── */}
                 {(selectedOrder.statusOrder === "PENDING" || selectedOrder.statusOrder === "WAITING_FOR_UPDATE") && (
-                  <div className="border border-border rounded-xl p-5 space-y-4">
-                    <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                      <ArrowRight className="w-4 h-4 text-primary" />
+                  <div className="border border-border rounded-lg p-4 space-y-3">
+                    <h4 className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                      <ArrowRight className="w-3.5 h-3.5 text-primary" />
                       Thao tác
                     </h4>
 
                     {/* Reject form */}
                     {showRejectForm ? (
-                      <div className="space-y-3 bg-red-50 border border-red-200 rounded-lg p-4">
-                        <p className="text-sm font-semibold text-red-700">Từ chối đơn hàng</p>
+                      <div className="space-y-2 bg-red-50 border border-red-200 rounded-lg p-3">
+                        <p className="text-xs font-semibold text-red-700">Từ chối đơn hàng</p>
                         <textarea
                           placeholder="Nhập lý do từ chối..."
                           value={rejectReason}
                           onChange={(e) => setRejectReason(e.target.value)}
-                          rows={3}
-                          className="um-input resize-none"
+                          rows={2}
+                          className="um-input resize-none text-sm"
                         />
                         <div className="flex gap-2">
                           <button
@@ -609,16 +608,17 @@ const SupplyCoordinatorOrders = () => {
 
                 {/* Status info for non-actionable orders */}
                 {!["PENDING", "WAITING_FOR_UPDATE"].includes(selectedOrder.statusOrder) && (
-                  <div className="bg-muted/50 rounded-xl p-4 text-center">
-                    <p className="text-sm text-muted-foreground">
-                      Đơn hàng đang ở trạng thái <strong>{selectedOrder.statusOrder}</strong> — không cần thao tác thêm.
+                  <div className="bg-muted/50 rounded-lg p-3 text-center">
+                    <p className="text-xs text-muted-foreground">
+                      Trạng thái <strong>{selectedOrder.statusOrder}</strong> — không cần thao tác thêm.
                     </p>
                   </div>
                 )}
               </div>
             )}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
