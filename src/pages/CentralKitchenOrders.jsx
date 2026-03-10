@@ -20,7 +20,7 @@ const STATUS_CFG = {
   CONFIRMED:           { color: "text-blue-600",    bg: "bg-blue-50",    border: "border-blue-200",    icon: CheckCircle   },
   COOKING:             { color: "text-orange-600",  bg: "bg-orange-50",  border: "border-orange-200",  icon: Flame         },
   COOKING_DONE:        { color: "text-emerald-600", bg: "bg-emerald-50", border: "border-emerald-200", icon: CheckCircle   },
-  IN_PROCESS:          { color: "text-purple-600",  bg: "bg-purple-50",  border: "border-purple-200",  icon: Loader2       },
+  IN_PROGRESS:         { color: "text-purple-600",  bg: "bg-purple-50",  border: "border-purple-200",  icon: Clock         },
   WAITING_FOR_UPDATE:  { color: "text-sky-600",     bg: "bg-sky-50",     border: "border-sky-200",     icon: MessageSquare },
   DELIVERED:           { color: "text-green-600",   bg: "bg-green-50",   border: "border-green-200",   icon: CheckCircle   },
   REJECTED:            { color: "text-red-600",     bg: "bg-red-50",     border: "border-red-200",     icon: XCircle       },
@@ -29,13 +29,13 @@ const STATUS_CFG = {
 const statusStyle = (s) =>
   STATUS_CFG[s] ?? { color: "text-gray-600", bg: "bg-gray-50", border: "border-gray-200", icon: AlertCircle };
 
-const KITCHEN_STATUSES = ["APPROVED", "CONFIRMED", "COOKING", "COOKING_DONE"];
+const KITCHEN_STATUSES = ["IN_PROGRESS", "COOKING", "COOKING_DONE"];
 
 const TABS = [
-  { key: "KITCHEN_ALL", label: "Tất cả" },
-  { key: "APPROVED",    label: "Chờ nấu" },
-  { key: "COOKING",     label: "Đang nấu" },
-  { key: "COOKING_DONE",label: "Nấu xong" },
+  { key: "KITCHEN_ALL",  label: "Tất cả" },
+  { key: "IN_PROGRESS",  label: "Chờ nấu" },
+  { key: "COOKING",      label: "Đang nấu" },
+  { key: "COOKING_DONE", label: "Nấu xong" },
 ];
 
 /* ═══════════════════════════════════════════════════════════════════════
@@ -135,7 +135,7 @@ const CentralKitchenOrders = () => {
   /* ── Stats ── */
   const stats = {
     total:       orders.length,
-    approved:    orders.filter((o) => ["APPROVED", "CONFIRMED"].includes(o.statusOrder)).length,
+    inProgress:  orders.filter((o) => o.statusOrder === "IN_PROGRESS").length,
     cooking:     orders.filter((o) => o.statusOrder === "COOKING").length,
     cookingDone: orders.filter((o) => o.statusOrder === "COOKING_DONE").length,
   };
@@ -162,7 +162,7 @@ const CentralKitchenOrders = () => {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
           { label: "Tổng đơn",  value: stats.total,       variant: "stat-card-blue",   icon: Package },
-          { label: "Chờ nấu",   value: stats.approved,    variant: "stat-card-orange",  icon: Clock },
+          { label: "Chờ nấu",   value: stats.inProgress,  variant: "stat-card-orange",  icon: Clock },
           { label: "Đang nấu",  value: stats.cooking,     variant: "stat-card-purple",  icon: Flame },
           { label: "Nấu xong",  value: stats.cookingDone, variant: "stat-card-green",   icon: CheckCircle },
         ].map((s) => (
@@ -413,8 +413,8 @@ const CentralKitchenOrders = () => {
                             Trạng thái hiện tại: {selectedOrder.statusOrder}
                           </p>
                           <p className="text-xs text-muted-foreground mt-0.5">
-                            {selectedOrder.statusOrder === "APPROVED" || selectedOrder.statusOrder === "CONFIRMED"
-                              ? "Đơn hàng đã được duyệt. Bấm \"Bắt đầu nấu\" để bắt đầu sản xuất."
+                            {selectedOrder.statusOrder === "IN_PROGRESS"
+                              ? "Đơn hàng đã được xác nhận từ Supply Coordinator. Bấm \"Bắt đầu nấu\" để bắt đầu sản xuất."
                               : selectedOrder.statusOrder === "COOKING"
                               ? "Đang sản xuất. Khi hoàn thành, bấm \"Nấu xong\" để cập nhật."
                               : selectedOrder.statusOrder === "COOKING_DONE"
@@ -429,8 +429,8 @@ const CentralKitchenOrders = () => {
 
                 {/* ── Actions ── */}
                 <div className="flex flex-wrap gap-3">
-                  {/* APPROVED/CONFIRMED → Bắt đầu nấu */}
-                  {(selectedOrder.statusOrder === "APPROVED" || selectedOrder.statusOrder === "CONFIRMED") && (
+                  {/* IN_PROGRESS → Bắt đầu nấu */}
+                  {selectedOrder.statusOrder === "IN_PROGRESS" && (
                     <button
                       onClick={handleStartCooking}
                       disabled={actionLoading}
