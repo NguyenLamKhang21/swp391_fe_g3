@@ -92,27 +92,12 @@ const CentralKitchenOrders = () => {
   };
 
   /* ── Actions ── */
-  const handleStartCooking = async () => {
-    if (!selectedOrder) return;
-    try {
-      setActionLoading(true);
-      await updateOrderStatus(selectedOrder.orderId, "COOKING");
-      toast.success(`Đơn ${selectedOrder.orderId} → Đang nấu.`);
-      closeModal();
-      await fetchOrders();
-    } catch (err) {
-      toast.error(err?.response?.data?.message ?? "Không thể cập nhật trạng thái.");
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
   const handleCookingDone = async () => {
     if (!selectedOrder) return;
     try {
       setActionLoading(true);
-      await updateOrderStatus(selectedOrder.orderId, "COOKING_DONE");
-      toast.success(`Đơn ${selectedOrder.orderId} → Nấu xong! Sẵn sàng giao hàng.`);
+      await updateOrderStatus(selectedOrder.orderId, "COOKING_DONE", selectedOrder.note);
+      toast.success(`Đơn ${selectedOrder.orderId} Nấu xong! Sẵn sàng giao hàng.`);
       closeModal();
       await fetchOrders();
     } catch (err) {
@@ -343,18 +328,29 @@ const CentralKitchenOrders = () => {
                 {/* ── Order info ── */}
                 <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
                   {[
-                    { label: "Order ID",  value: selectedOrder.orderId },
-                    { label: "Store",     value: selectedOrder.storeId },
-                    { label: "Status",    value: selectedOrder.statusOrder },
-                    { label: "Priority",  value: selectedOrder.priorityLevel ? `Level ${selectedOrder.priorityLevel}` : "—" },
-                    { label: "Payment",   value: selectedOrder.paymentOption },
-                    { label: "Ngày đặt",  value: selectedOrder.orderDate ?? "—" },
+                    { label: "Order ID",   value: selectedOrder.orderId },
+                    { label: "Store",      value: selectedOrder.storeId },
+                    { label: "Status",     value: selectedOrder.statusOrder },
+                    { label: "Priority",   value: selectedOrder.priorityLevel ? `Level ${selectedOrder.priorityLevel}` : "—" },
+                    { label: "Payment",    value: selectedOrder.paymentOption ?? "—" },
+                    { label: "Order Date", value: selectedOrder.orderDate ?? "—" },
                   ].map((f) => (
                     <div key={f.label} className="bg-muted/50 rounded-lg p-2">
                       <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">{f.label}</p>
                       <p className="text-xs font-medium text-foreground mt-0.5 truncate">{f.value}</p>
                     </div>
                   ))}
+                </div>
+
+                {/* ── Note ── */}
+                <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-3">
+                  <MessageSquare className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[10px] font-semibold text-amber-700 uppercase tracking-wider">Note</p>
+                    <p className="text-sm text-amber-900 mt-0.5 break-words">
+                      {selectedOrder.note?.trim() ? selectedOrder.note : <span className="italic text-amber-500">No note provided</span>}
+                    </p>
+                  </div>
                 </div>
 
                 {/* ── Order items ── */}
@@ -432,7 +428,7 @@ const CentralKitchenOrders = () => {
                   {/* IN_PROGRESS → Bắt đầu nấu */}
                   {selectedOrder.statusOrder === "IN_PROGRESS" && (
                     <button
-                      onClick={handleStartCooking}
+                      onClick={handleCookingDone}
                       disabled={actionLoading}
                       className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-orange-500 text-white text-sm font-semibold hover:bg-orange-600 active:scale-[0.98] transition-all disabled:opacity-60"
                     >
