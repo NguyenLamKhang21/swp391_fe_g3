@@ -13,7 +13,7 @@ import {
   BarChart2,
 } from "lucide-react";
 import { toast } from "react-toastify";
-import { getOrderByStatus } from "../api/authAPI";
+import { getAllOrders } from "../api/authAPI";
 
 /* ─── helpers ─────────────────────────────────────────────────────────────── */
 
@@ -55,9 +55,10 @@ const CentralKitchenOrderManagement = () => {
   const fetchOrders = useCallback(async () => {
     try {
       setLoading(true);
-      const res  = await getOrderByStatus("IN_PROGRESS");
+      const res  = await getAllOrders();
       const data = res.data?.data ?? res.data ?? [];
-      setOrders(Array.isArray(data) ? data : []);
+      const all  = Array.isArray(data) ? data : [];
+      setOrders(all.filter((o) => o.statusOrder === "IN_PROGRESS"));
     } catch (err) {
       toast.error(err?.response?.data?.message ?? "Failed to load IN_PROGRESS orders.");
     } finally {
