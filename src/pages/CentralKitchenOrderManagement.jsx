@@ -13,7 +13,7 @@ import {
   BarChart2,
 } from "lucide-react";
 import { toast } from "react-toastify";
-import { getAllOrders } from "../api/authAPI";
+import { getAllOrders, updateOrderStatus } from "../api/authAPI";
 
 /* ─── helpers ─────────────────────────────────────────────────────────────── */
 
@@ -45,11 +45,30 @@ const orderStatusColor = (s) => {
 
 /* ─── main component ─────────────────────────────────────────────────────── */
 
+/* ─── Status options ─────────────────────────────────────────────────────── */
+const STATUS_OPTIONS = [
+  { label: "Pending",      value: "PENDING" },
+  { label: "In Progress",  value: "IN_PROGRESS" },
+  { label: "Cancelled",    value: "CANCELLED" },
+  { label: "Cooking Done", value: "COOKING_DONE" },
+];
+
+const selectStatusColor = (v) => {
+  switch (v) {
+    case "IN_PROGRESS":  return "bg-purple-50 text-purple-700 border-purple-300";
+    case "PENDING":      return "bg-amber-50  text-amber-700  border-amber-300";
+    case "CANCELLED":    return "bg-red-50    text-red-700    border-red-300";
+    case "COOKING_DONE": return "bg-emerald-50 text-emerald-700 border-emerald-300";
+    default:             return "bg-gray-50   text-gray-600   border-gray-300";
+  }
+};
+
 const CentralKitchenOrderManagement = () => {
   const [orders, setOrders]         = useState([]);
   const [loading, setLoading]       = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [selected, setSelected]     = useState(null);
+  const [updatingId, setUpdatingId] = useState(null);
 
   /* fetch */
   const fetchOrders = useCallback(async () => {
@@ -67,6 +86,22 @@ const CentralKitchenOrderManagement = () => {
   }, []);
 
   useEffect(() => { fetchOrders(); }, [fetchOrders]);
+
+  /* handle status change */
+  const handleStatusChange = async (e, orderId) => {
+    e.stopPropagation();
+    const newStatus = e.target.value;
+    try {
+      setUpdatingId(orderId);
+      await updateOrderStatus(orderId, newStatus);
+      toast.success(`Order ${orderId} status updated to ${newStatus}.`);
+      await fetchOrders();
+    } catch (err) {
+      toast.error(err?.response?.data?.message ?? "Failed to update order status.");
+    } finally {
+      setUpdatingId(null);
+    }
+  };
 
   /* filter */
   const filtered = orders.filter((o) => {
@@ -200,7 +235,7 @@ const CentralKitchenOrderManagement = () => {
                     <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">Store</th>
                     <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">Date</th>
                     <th className="px-5 py-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider">Priority</th>
-                    <th className="px-5 py-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider">Status</th>
+                    <th className="px-5 py-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider">Update Status</th>
                     <th className="px-5 py-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider">Payment</th>
                   </tr>
                 </thead>
@@ -230,8 +265,24 @@ const CentralKitchenOrderManagement = () => {
                           <span className="text-muted-foreground">—</span>
                         )}
                       </td>
-                      <td className="px-5 py-3.5 text-center">
-                        {badge(o.statusOrder, orderStatusColor(o.statusOrder))}
+                      <td className="px-5 py-3.5 text-center" onClick={(e) => e.stopPropagation()}>
+                        {updatingId === o.orderId ? (
+                          <div className="flex items-center justify-center">
+                            <Loader2 className="w-4 h-4 animate-spin text-purple-500" />
+                          </div>
+                        ) : (
+                          <select
+                            value={o.statusOrder}
+                            onChange={(e) => handleStatusChange(e, o.orderId)}
+                            className={`text-xs font-semibold rounded-full border px-2.5 py-1 cursor-pointer outline-none transition-colors ${selectStatusColor(o.statusOrder)}`}
+                          >
+                            {STATUS_OPTIONS.map((opt) => (
+                              <option key={opt.value} value={opt.value}>
+                                {opt.label}
+                              </option>
+                            ))}
+                          </select>
+                        )}
                       </td>
                       <td className="px-5 py-3.5 text-center">
                         {badge(o.paymentStatus ?? "—", paymentStatusColor(o.paymentStatus))}
