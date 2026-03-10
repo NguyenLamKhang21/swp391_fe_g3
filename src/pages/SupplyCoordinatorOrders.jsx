@@ -145,7 +145,7 @@ const SupplyCoordinatorOrders = () => {
     try {
       setActionLoading(true);
       await updateOrderPriority(selectedOrder.orderId, selectedPriority, priorityNote);
-      await confirmOrder(selectedOrder.orderId);
+      await confirmOrder(selectedOrder.orderId, selectedPriority);
       toast.success(`Đơn ${selectedOrder.orderId} đã xác nhận (Priority ${selectedPriority} - ${PRIORITY_LABELS[selectedPriority]}) → gửi tới Central Kitchen.`);
       closeModal();
       await fetchOrders();

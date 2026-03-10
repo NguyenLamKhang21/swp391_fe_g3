@@ -16,7 +16,8 @@ export const getOrderById = (orderId) => API.get(`/orders/${orderId}`);
 
 export const getOrderDetailByOrderId = (orderId) => API.get(`/orders/${orderId}/detail`);
 
-export const confirmOrder = (orderId) => API.post(`/orders/${orderId}/confirm`);
+export const confirmOrder = (orderId, priorityLevel) =>
+  API.post(`/orders/${orderId}/confirm`, null, { params: { priorityLevel } });
 
 export const cancelOrder = (orderId) => API.post(`/orders/${orderId}/cancel`);
 
