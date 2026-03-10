@@ -23,8 +23,8 @@ export const cancelOrder = (orderId) => API.post(`/orders/${orderId}/cancel`);
 export const updateOrderStatus = (orderId, status) =>
   API.put(`/orders/${orderId}/status`, { statusOrder: status });
 
-export const updateOrderPriority = (orderId, priorityLevel) =>
-  API.patch(`/orders/${orderId}/priority`, { priorityLevel });
+export const updateOrderPriority = (orderId, newPriority, note = "") =>
+  API.patch(`/orders/${orderId}/priority`, { newPriority, note });
 
 
 

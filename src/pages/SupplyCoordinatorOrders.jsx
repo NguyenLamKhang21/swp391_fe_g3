@@ -61,9 +61,11 @@ const SupplyCoordinatorOrders = () => {
   const [detailLoading, setDetailLoading] = useState(false);
 
   // Action state
-  const [rejectReason, setRejectReason]   = useState("");
-  const [actionLoading, setActionLoading] = useState(false);
-  const [showRejectForm, setShowRejectForm] = useState(false);
+  const [rejectReason, setRejectReason]       = useState("");
+  const [actionLoading, setActionLoading]     = useState(false);
+  const [showRejectForm, setShowRejectForm]   = useState(false);
+  const [selectedPriority, setSelectedPriority] = useState(2);
+  const [priorityNote, setPriorityNote]       = useState("");
 
   /* ── Fetch all orders ── */
   const fetchOrders = useCallback(async () => {
@@ -89,6 +91,8 @@ const SupplyCoordinatorOrders = () => {
     setCentralFoods([]);
     setRejectReason("");
     setShowRejectForm(false);
+    setSelectedPriority(2);
+    setPriorityNote("");
     setDetailLoading(true);
 
     try {
@@ -134,13 +138,15 @@ const SupplyCoordinatorOrders = () => {
   );
 
   /* ── Actions ── */
+  const PRIORITY_LABELS = { 1: "HIGH", 2: "MEDIUM", 3: "LOW" };
+
   const handleConfirmOrder = async () => {
     if (!selectedOrder) return;
     try {
       setActionLoading(true);
-      await updateOrderPriority(selectedOrder.orderId, 2);
+      await updateOrderPriority(selectedOrder.orderId, selectedPriority, priorityNote);
       await confirmOrder(selectedOrder.orderId);
-      toast.success(`Đơn ${selectedOrder.orderId} đã xác nhận (Priority 2) → gửi tới Central Kitchen.`);
+      toast.success(`Đơn ${selectedOrder.orderId} đã xác nhận (Priority ${selectedPriority} - ${PRIORITY_LABELS[selectedPriority]}) → gửi tới Central Kitchen.`);
       closeModal();
       await fetchOrders();
     } catch (err) {
@@ -568,38 +574,75 @@ const SupplyCoordinatorOrders = () => {
                             </button>
                           </div>
                         ) : (
-                          <>
-                            {/* Confirm → Priority 2 + gửi Central Kitchen */}
-                            <button
-                              onClick={handleConfirmOrder}
-                              disabled={actionLoading}
-                              className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-60"
-                            >
-                              {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
-                              Xác nhận đơn (Priority 2)
-                            </button>
+                          <div className="space-y-3 w-full">
+                            {/* Priority selector + Note */}
+                            <div className="flex flex-wrap items-end gap-3">
+                              <div className="space-y-1">
+                                <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Priority</label>
+                                <div className="flex gap-1.5">
+                                  {[
+                                    { value: 1, label: "1 — HIGH",   color: "border-red-400 bg-red-50 text-red-700" },
+                                    { value: 2, label: "2 — MEDIUM", color: "border-amber-400 bg-amber-50 text-amber-700" },
+                                    { value: 3, label: "3 — LOW",    color: "border-green-400 bg-green-50 text-green-700" },
+                                  ].map((p) => (
+                                    <button
+                                      key={p.value}
+                                      type="button"
+                                      onClick={() => setSelectedPriority(p.value)}
+                                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
+                                        selectedPriority === p.value
+                                          ? `${p.color} ring-2 ring-offset-1 ring-primary/30`
+                                          : "border-border bg-muted/50 text-muted-foreground hover:border-primary/50"
+                                      }`}
+                                    >
+                                      {p.label}
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                              <div className="flex-1 min-w-[140px] space-y-1">
+                                <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Ghi chú (tùy chọn)</label>
+                                <input
+                                  type="text"
+                                  placeholder="Ghi chú priority..."
+                                  value={priorityNote}
+                                  onChange={(e) => setPriorityNote(e.target.value)}
+                                  className="um-input text-xs py-1.5"
+                                />
+                              </div>
+                            </div>
 
-                            {/* Waiting for Update → thiếu hàng, cần deal */}
-                            {selectedOrder.statusOrder === "PENDING" && (
+                            {/* Action buttons */}
+                            <div className="flex flex-wrap gap-2">
                               <button
-                                onClick={handleWaitingForUpdate}
+                                onClick={handleConfirmOrder}
                                 disabled={actionLoading}
-                                className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-sky-600 text-white text-sm font-semibold hover:bg-sky-700 transition-colors disabled:opacity-60"
+                                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-60"
                               >
-                                {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <MessageSquare className="w-4 h-4" />}
-                                Thiếu hàng — Deal với Store
+                                {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
+                                Xác nhận đơn (Priority {selectedPriority})
                               </button>
-                            )}
 
-                            {/* Reject */}
-                            <button
-                              onClick={() => setShowRejectForm(true)}
-                              className="flex items-center gap-2 px-5 py-2.5 rounded-lg border border-red-300 bg-red-50 text-red-700 text-sm font-semibold hover:bg-red-100 transition-colors"
-                            >
-                              <XCircle className="w-4 h-4" />
-                              Từ chối đơn
-                            </button>
-                          </>
+                              {selectedOrder.statusOrder === "PENDING" && (
+                                <button
+                                  onClick={handleWaitingForUpdate}
+                                  disabled={actionLoading}
+                                  className="flex items-center gap-2 px-4 py-2 rounded-lg bg-sky-600 text-white text-sm font-semibold hover:bg-sky-700 transition-colors disabled:opacity-60"
+                                >
+                                  {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <MessageSquare className="w-4 h-4" />}
+                                  Thiếu hàng — Deal với Store
+                                </button>
+                              )}
+
+                              <button
+                                onClick={() => setShowRejectForm(true)}
+                                className="flex items-center gap-2 px-4 py-2 rounded-lg border border-red-300 bg-red-50 text-red-700 text-sm font-semibold hover:bg-red-100 transition-colors"
+                              >
+                                <XCircle className="w-4 h-4" />
+                                Từ chối đơn
+                              </button>
+                            </div>
+                          </div>
                         )}
                       </div>
                     )}
