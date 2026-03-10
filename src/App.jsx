@@ -21,6 +21,7 @@ import SupplyCoordinatorOrders from "./pages/SupplyCoordinatorOrders";
 import CentralKitchenLayout from "./layouts/CentralKitchenLayout";
 import CentralKitchenOrders from "./pages/CentralKitchenOrders";
 import CentralKitchenInventory from "./pages/CentralKitchenInventory";
+import CentralKitchenOrderManagement from "./pages/CentralKitchenOrderManagement";
 
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
@@ -108,6 +109,7 @@ const App = () => (
       >
         <Route index element={<CentralKitchenOrders />} />
         <Route path="orders" element={<CentralKitchenOrders />} />
+        <Route path="order-management" element={<CentralKitchenOrderManagement />} />
         <Route path="inventory" element={<CentralKitchenInventory />} />
       </Route>
     </Routes>

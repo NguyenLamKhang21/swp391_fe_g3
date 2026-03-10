@@ -30,3 +30,4 @@ export const updateOrderPriority = (orderId, priorityLevel) =>
 
 export const getCentralKitchenFood = () => API.get("/central_foods");
 
+export const getOrderByStatus = (status) => API.get(`/orders/status/${status}`);

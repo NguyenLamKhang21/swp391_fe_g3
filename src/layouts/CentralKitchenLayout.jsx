@@ -1,11 +1,12 @@
-import { ChefHat, Package } from "lucide-react";
+import { ChefHat, Package, ClipboardList } from "lucide-react";
 import MainLayout from "./MainLayout";
 
 const centralKitchenNavItems = [
   {
     section: "Xử lý đơn hàng",
     items: [
-      { label: "Order Processing", icon: ChefHat, to: "/central-kitchen/orders" },
+      { label: "Order Processing",   icon: ChefHat,       to: "/central-kitchen/orders" },
+      { label: "Order Management",   icon: ClipboardList, to: "/central-kitchen/order-management" },
     ],
   },
   {
@@ -17,8 +18,9 @@ const centralKitchenNavItems = [
 ];
 
 const centralKitchenPageTitles = {
-  "/central-kitchen/orders": "Order Processing",
-  "/central-kitchen/inventory": "Inventory Management",
+  "/central-kitchen/orders":             "Order Processing",
+  "/central-kitchen/order-management":   "Order Management",
+  "/central-kitchen/inventory":          "Inventory Management",
 };
 
 const CentralKitchenLayout = () => (
