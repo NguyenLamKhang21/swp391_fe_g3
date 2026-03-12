@@ -14,6 +14,7 @@ import {
   confirmOrder,
   cancelOrder,
   updateOrderStatus,
+  updateOrderPriority,
   getCentralKitchenFood,
 } from "../api/authAPI";
 
@@ -143,7 +144,16 @@ const SupplyCoordinatorOrders = () => {
     if (!selectedOrder) return;
     try {
       setActionLoading(true);
-      await confirmOrder(selectedOrder.orderId, selectedPriority);
+
+      if (selectedOrder.statusOrder === "WAITING_FOR_UPDATE") {
+        // For WAITING_FOR_UPDATE orders: update priority first, then set status to APPROVED
+        await updateOrderPriority(selectedOrder.orderId, selectedPriority, priorityNote);
+        await updateOrderStatus(selectedOrder.orderId, "COOKING_DONE");
+      } else {
+        // For PENDING orders: use the standard confirm endpoint
+        await confirmOrder(selectedOrder.orderId, selectedPriority);
+      }
+
       toast.success(`Đơn ${selectedOrder.orderId} đã xác nhận (Priority ${selectedPriority} - ${PRIORITY_LABELS[selectedPriority]}) → gửi tới Central Kitchen.`);
       closeModal();
       await fetchOrders();
