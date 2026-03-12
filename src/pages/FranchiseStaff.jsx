@@ -5,13 +5,14 @@ import API from "../api/axios";
 import { getOrdersByStore, getCentralKitchenFood, getOrderDetailByOrderId } from "../api/authAPI";
 
 const PAYMENT_OPTIONS = [
-  { value: "PAY_AFTER_ORDER",  label: "Pay After Order"  },
-  { value: "PAY_BEFORE_ORDER", label: "Pay Before Order" },
+  { value: "PAY_AFTER_ORDER",         label: "Pay After Order"              },
+  { value: "PAY_AFTER_DELIVERY",      label: "Pay After Delivery"           },
+  { value: "PAY_AT_THE_END_OF_MONTH", label: "Pay At The End Of The Month"  },
 ];
 
 const PAYMENT_METHOD_OPTIONS = [
   { value: "CASH",          label: "Cash"          },
-  { value: "CREDIT", label: "Bank Transfer" },
+  { value: "CREDIT", label: "VnPay" },
 ];
 
 const EMPTY_FORM = {
