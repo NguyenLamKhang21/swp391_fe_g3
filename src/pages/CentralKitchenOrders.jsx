@@ -9,6 +9,7 @@ import {
   getAllOrders,
   getOrderDetailByOrderId,
   updateOrderStatus,
+  decreaseFoodBaseOnOrder,
 } from "../api/authAPI";
 
 /* ═══════════════════════════════════════════════════════════════════════
@@ -94,10 +95,22 @@ const CentralKitchenOrders = () => {
   /* ── Actions ── */
   const handleCookingDone = async () => {
     if (!selectedOrder) return;
+    const isStartCooking = selectedOrder.statusOrder === "IN_PROGRESS";
     try {
       setActionLoading(true);
       await updateOrderStatus(selectedOrder.orderId, "COOKING_DONE", selectedOrder.note);
       toast.success(`Đơn ${selectedOrder.orderId} Nấu xong! Sẵn sàng giao hàng.`);
+
+      // Decrease central food stock when starting from IN_PROGRESS ("Bắt đầu nấu")
+      if (isStartCooking) {
+        try {
+          await decreaseFoodBaseOnOrder(selectedOrder.orderId);
+          toast.success(`Đã cập nhật nguyên liệu cho đơn ${selectedOrder.orderId}.`);
+        } catch (decreaseErr) {
+          toast.error(decreaseErr?.response?.data?.message ?? "Không thể cập nhật số lượng nguyên liệu.");
+        }
+      }
+
       closeModal();
       await fetchOrders();
     } catch (err) {

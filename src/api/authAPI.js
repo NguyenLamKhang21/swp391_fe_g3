@@ -22,7 +22,7 @@ export const confirmOrder = (orderId, priorityLevel) =>
 export const cancelOrder = (orderId) => API.post(`/orders/${orderId}/cancel`);
 
 export const updateOrderStatus = (orderId, status) =>
-  API.put(`/orders/${orderId}/status`, { newStatus: status});
+  API.put(`/orders/${orderId}/status`, { newStatus: status });
 
 export const updateOrderPriority = (orderId, newPriority, note = "") =>
   API.patch(`/orders/${orderId}/priority`, { newPriority, note });
@@ -32,3 +32,5 @@ export const updateOrderPriority = (orderId, newPriority, note = "") =>
 export const getCentralKitchenFood = () => API.get("/central_foods");
 
 export const getOrderByStatus = (status) => API.get(`/orders/status/${status}`);
+
+export const decreaseFoodBaseOnOrder = (orderId) => API.put(`/central_foods/decrease/${orderId}`);
