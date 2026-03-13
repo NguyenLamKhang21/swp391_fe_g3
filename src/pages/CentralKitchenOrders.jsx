@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import {
   ChefHat, CheckCircle, Clock, Loader2, RefreshCw, Search,
-  Package, Eye, X, Flame, Truck, AlertCircle, XCircle, MessageSquare,
+  Package, Eye, X, Truck, AlertCircle, XCircle, MessageSquare,
 } from "lucide-react";
 import { toast } from "react-toastify";
 import {
@@ -17,26 +17,21 @@ import {
    ═══════════════════════════════════════════════════════════════════════ */
 const STATUS_CFG = {
   PENDING:             { color: "text-amber-600",   bg: "bg-amber-50",   border: "border-amber-200",   icon: Clock         },
-  APPROVED:            { color: "text-blue-600",    bg: "bg-blue-50",    border: "border-blue-200",    icon: CheckCircle   },
-  CONFIRMED:           { color: "text-blue-600",    bg: "bg-blue-50",    border: "border-blue-200",    icon: CheckCircle   },
-  COOKING:             { color: "text-orange-600",  bg: "bg-orange-50",  border: "border-orange-200",  icon: Flame         },
-  COOKING_DONE:        { color: "text-emerald-600", bg: "bg-emerald-50", border: "border-emerald-200", icon: CheckCircle   },
   IN_PROGRESS:         { color: "text-purple-600",  bg: "bg-purple-50",  border: "border-purple-200",  icon: Clock         },
+  COOKING_DONE:        { color: "text-emerald-600", bg: "bg-emerald-50", border: "border-emerald-200", icon: CheckCircle   },
   WAITING_FOR_UPDATE:  { color: "text-sky-600",     bg: "bg-sky-50",     border: "border-sky-200",     icon: MessageSquare },
   DELIVERED:           { color: "text-green-600",   bg: "bg-green-50",   border: "border-green-200",   icon: CheckCircle   },
-  REJECTED:            { color: "text-red-600",     bg: "bg-red-50",     border: "border-red-200",     icon: XCircle       },
   CANCELLED:           { color: "text-gray-500",    bg: "bg-gray-50",    border: "border-gray-200",    icon: XCircle       },
 };
 const statusStyle = (s) =>
   STATUS_CFG[s] ?? { color: "text-gray-600", bg: "bg-gray-50", border: "border-gray-200", icon: AlertCircle };
 
-const KITCHEN_STATUSES = ["IN_PROGRESS", "COOKING", "COOKING_DONE"];
+const KITCHEN_STATUSES = ["IN_PROGRESS", "COOKING_DONE"];
 
 const TABS = [
   { key: "KITCHEN_ALL",  label: "Tất cả" },
-  { key: "IN_PROGRESS",  label: "Chờ nấu" },
-  { key: "COOKING",      label: "Đang nấu" },
-  { key: "COOKING_DONE", label: "Nấu xong" },
+  { key: "IN_PROGRESS",  label: "Chờ xử lý" },
+  { key: "COOKING_DONE", label: "Hoàn thành" },
 ];
 
 /* ═══════════════════════════════════════════════════════════════════════
@@ -98,7 +93,7 @@ const CentralKitchenOrders = () => {
     const isStartCooking = selectedOrder.statusOrder === "IN_PROGRESS";
     try {
       setActionLoading(true);
-      await updateOrderStatus(selectedOrder.orderId, "COOKING_DONE", selectedOrder.note);
+      await updateOrderStatus(selectedOrder.orderId, "COOKING_DONE");
       toast.success(`Đơn ${selectedOrder.orderId} Nấu xong! Sẵn sàng giao hàng.`);
 
       // Decrease central food stock when starting from IN_PROGRESS ("Bắt đầu nấu")
@@ -134,7 +129,6 @@ const CentralKitchenOrders = () => {
   const stats = {
     total:       orders.length,
     inProgress:  orders.filter((o) => o.statusOrder === "IN_PROGRESS").length,
-    cooking:     orders.filter((o) => o.statusOrder === "COOKING").length,
     cookingDone: orders.filter((o) => o.statusOrder === "COOKING_DONE").length,
   };
 
@@ -157,12 +151,11 @@ const CentralKitchenOrders = () => {
       </div>
 
       {/* ── Stats cards ── */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
         {[
-          { label: "Tổng đơn",  value: stats.total,       variant: "stat-card-blue",   icon: Package },
-          { label: "Chờ nấu",   value: stats.inProgress,  variant: "stat-card-orange",  icon: Clock },
-          { label: "Đang nấu",  value: stats.cooking,     variant: "stat-card-purple",  icon: Flame },
-          { label: "Nấu xong",  value: stats.cookingDone, variant: "stat-card-green",   icon: CheckCircle },
+          { label: "Tổng đơn",    value: stats.total,       variant: "stat-card-blue",   icon: Package },
+          { label: "Chờ xử lý",   value: stats.inProgress,  variant: "stat-card-orange", icon: Clock },
+          { label: "Hoàn thành",   value: stats.cookingDone, variant: "stat-card-green",  icon: CheckCircle },
         ].map((s) => (
           <div key={s.label} className={`stat-card rounded-xl p-4 ${s.variant}`}>
             <div className="flex items-center justify-between">
@@ -423,9 +416,7 @@ const CentralKitchenOrders = () => {
                           </p>
                           <p className="text-xs text-muted-foreground mt-0.5">
                             {selectedOrder.statusOrder === "IN_PROGRESS"
-                              ? "Đơn hàng đã được xác nhận từ Supply Coordinator. Bấm \"Bắt đầu nấu\" để bắt đầu sản xuất."
-                              : selectedOrder.statusOrder === "COOKING"
-                              ? "Đang sản xuất. Khi hoàn thành, bấm \"Nấu xong\" để cập nhật."
+                              ? "Đơn hàng đã được xác nhận từ Supply Coordinator. Khi nấu xong, bấm \"Hoàn thành nấu\" để cập nhật."
                               : selectedOrder.statusOrder === "COOKING_DONE"
                               ? "Đã nấu xong và đóng gói. Sẵn sàng giao hàng."
                               : ""}
@@ -438,27 +429,15 @@ const CentralKitchenOrders = () => {
 
                 {/* ── Actions ── */}
                 <div className="flex flex-wrap gap-3">
-                  {/* IN_PROGRESS → Bắt đầu nấu */}
+                  {/* IN_PROGRESS → COOKING_DONE */}
                   {selectedOrder.statusOrder === "IN_PROGRESS" && (
-                    <button
-                      onClick={handleCookingDone}
-                      disabled={actionLoading}
-                      className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-orange-500 text-white text-sm font-semibold hover:bg-orange-600 active:scale-[0.98] transition-all disabled:opacity-60"
-                    >
-                      {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Flame className="w-4 h-4" />}
-                      Bắt đầu nấu
-                    </button>
-                  )}
-
-                  {/* COOKING → Nấu xong */}
-                  {selectedOrder.statusOrder === "COOKING" && (
                     <button
                       onClick={handleCookingDone}
                       disabled={actionLoading}
                       className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 active:scale-[0.98] transition-all disabled:opacity-60"
                     >
                       {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
-                      Nấu xong
+                      Hoàn thành nấu
                     </button>
                   )}
 
