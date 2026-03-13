@@ -16,9 +16,10 @@ import {
   Trash2,
   X,
   Save,
+  Plus,
 } from "lucide-react";
 import { toast } from "react-toastify";
-import { getCentralKitchenFood, updateCentralFood, deleteCentralFood } from "../api/authAPI";
+import { getCentralKitchenFood, createCentralFood, updateCentralFood, deleteCentralFood } from "../api/authAPI";
 
 /* ══════════════════════════════════════════════════════════════════════
    Status helpers
@@ -83,6 +84,10 @@ const CentralKitchenInventory = () => {
   const [editForm, setEditForm]       = useState(EMPTY_FORM);
   const [editLoading, setEditLoading] = useState(false);
 
+  const [showCreate, setShowCreate]       = useState(false);
+  const [createForm, setCreateForm]       = useState(EMPTY_FORM);
+  const [createLoading, setCreateLoading] = useState(false);
+
   const [deleteItem, setDeleteItem]       = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
@@ -101,6 +106,30 @@ const CentralKitchenInventory = () => {
   }, []);
 
   useEffect(() => { fetchFoods(); }, [fetchFoods]);
+
+  /* ── Create ── */
+  const handleCreateChange = (field, value) => {
+    setCreateForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleCreateSave = async () => {
+    if (!createForm.foodName.trim()) {
+      toast.warn("Vui lòng nhập tên thực phẩm.");
+      return;
+    }
+    try {
+      setCreateLoading(true);
+      await createCentralFood(createForm);
+      toast.success(`Đã thêm "${createForm.foodName}" thành công.`);
+      setShowCreate(false);
+      setCreateForm(EMPTY_FORM);
+      await fetchFoods();
+    } catch (err) {
+      toast.error(err?.response?.data?.message ?? "Không thể thêm thực phẩm.");
+    } finally {
+      setCreateLoading(false);
+    }
+  };
 
   /* ── Edit ── */
   const openEdit = (food) => {
@@ -230,6 +259,13 @@ const CentralKitchenInventory = () => {
         >
           <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
           Làm mới
+        </button>
+        <button
+          onClick={() => { setCreateForm(EMPTY_FORM); setShowCreate(true); }}
+          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 active:scale-[0.98] transition-all"
+        >
+          <Plus className="w-4 h-4" />
+          Thêm thực phẩm
         </button>
       </div>
 
@@ -412,6 +448,115 @@ const CentralKitchenInventory = () => {
           </div>
         </div>
       )}
+      {/* ══════════════════ CREATE MODAL ══════════════════ */}
+      {showCreate && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowCreate(false)} />
+          <div className="relative bg-background border border-border rounded-2xl shadow-2xl w-full max-w-xl max-h-[90vh] flex flex-col animate-fade-in">
+            <div className="flex-shrink-0 px-5 py-3 border-b border-border flex items-center justify-between">
+              <h3 className="text-base font-bold text-foreground">Thêm thực phẩm mới</h3>
+              <button onClick={() => setShowCreate(false)} className="p-2 rounded-lg bg-muted hover:bg-destructive hover:text-destructive-foreground transition-colors">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-5 space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Tên thực phẩm *</label>
+                <input type="text" value={createForm.foodName} onChange={(e) => handleCreateChange("foodName", e.target.value)}
+                  className="um-input w-full" placeholder="Nhập tên thực phẩm" />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Số lượng</label>
+                  <input type="number" min="0" value={createForm.amount} onChange={(e) => handleCreateChange("amount", Number(e.target.value))}
+                    className="um-input w-full" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Đơn giá (VND)</label>
+                  <input type="number" min="0" value={createForm.unitPriceFood} onChange={(e) => handleCreateChange("unitPriceFood", Number(e.target.value))}
+                    className="um-input w-full" />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Ngày sản xuất</label>
+                  <input type="date" value={createForm.manufacturingDate} onChange={(e) => handleCreateChange("manufacturingDate", e.target.value)}
+                    className="um-input w-full" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Hạn sử dụng</label>
+                  <input type="date" value={createForm.expiryDate} onChange={(e) => handleCreateChange("expiryDate", e.target.value)}
+                    className="um-input w-full" />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Trạng thái</label>
+                <select value={createForm.centralFoodStatus} onChange={(e) => handleCreateChange("centralFoodStatus", e.target.value)}
+                  className="um-input w-full">
+                  <option value="AVAILABLE">Còn hàng</option>
+                  <option value="OUT_OF_STOCK">Hết hàng</option>
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Khối lượng (g)</label>
+                  <input type="number" min="0" value={createForm.weight} onChange={(e) => handleCreateChange("weight", Number(e.target.value))}
+                    className="um-input w-full" />
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  <div>
+                    <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">D (cm)</label>
+                    <input type="number" min="0" value={createForm.length} onChange={(e) => handleCreateChange("length", Number(e.target.value))}
+                      className="um-input w-full" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">R (cm)</label>
+                    <input type="number" min="0" value={createForm.width} onChange={(e) => handleCreateChange("width", Number(e.target.value))}
+                      className="um-input w-full" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">C (cm)</label>
+                    <input type="number" min="0" value={createForm.height} onChange={(e) => handleCreateChange("height", Number(e.target.value))}
+                      className="um-input w-full" />
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Recipe ID</label>
+                  <input type="text" value={createForm.recipeId} onChange={(e) => handleCreateChange("recipeId", e.target.value)}
+                    className="um-input w-full" placeholder="(Tùy chọn)" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Food Type ID</label>
+                  <input type="text" value={createForm.centralFoodTypeId} onChange={(e) => handleCreateChange("centralFoodTypeId", e.target.value)}
+                    className="um-input w-full" placeholder="(Tùy chọn)" />
+                </div>
+              </div>
+            </div>
+
+            <div className="flex-shrink-0 px-5 py-3 border-t border-border flex items-center justify-end gap-3">
+              <button onClick={() => setShowCreate(false)}
+                className="px-4 py-2 rounded-lg border border-border text-sm font-medium text-foreground hover:bg-muted transition-colors">
+                Hủy
+              </button>
+              <button onClick={handleCreateSave} disabled={createLoading}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-60">
+                {createLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                Thêm
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
       {/* ══════════════════ EDIT MODAL ══════════════════ */}
       {editItem && createPortal(
         <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
