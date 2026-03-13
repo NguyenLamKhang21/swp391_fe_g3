@@ -17,7 +17,7 @@ const PAYMENT_METHOD_OPTIONS = [
 
 const EMPTY_FORM = {
   paymentOption:  "PAY_AFTER_ORDER",
-  paymentMethod:  "CASH",
+  paymentMethod:  "CREDIT",
   note:           "",
   foodItem:       "",
   quantity:       1,
@@ -96,12 +96,17 @@ const FranchiseStaff = () => {
   };
 
   /* ── handlers ── */
+  const VNPAY_ONLY_OPTIONS = ["PAY_AFTER_ORDER", "PAY_AT_THE_END_OF_MONTH"];
+
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setForm((prev) => ({
-      ...prev,
-      [name]: name === "quantity" ? Number(value) : value,
-    }));
+    setForm((prev) => {
+      const next = { ...prev, [name]: name === "quantity" ? Number(value) : value };
+      if (name === "paymentOption" && VNPAY_ONLY_OPTIONS.includes(value)) {
+        next.paymentMethod = "CREDIT";
+      }
+      return next;
+    });
   };
 
   const handleSubmit = async (e) => {
@@ -298,31 +303,42 @@ const FranchiseStaff = () => {
             <label className="text-sm font-medium text-foreground">
               Payment Method <span className="text-destructive">*</span>
             </label>
+            {VNPAY_ONLY_OPTIONS.includes(form.paymentOption) && (
+              <p className="text-xs text-amber-600">
+                {form.paymentOption === "PAY_AFTER_ORDER" ? "Pay After Order" : "Pay At The End Of The Month"} chỉ hỗ trợ thanh toán qua VnPay.
+              </p>
+            )}
             <div className="flex flex-wrap gap-3">
-              {PAYMENT_METHOD_OPTIONS.map((opt) => (
-                <label
-                  key={opt.value}
-                  className={`
-                    flex items-center gap-2 px-4 py-2.5 rounded-lg border cursor-pointer
-                    transition-all duration-200 select-none
-                    ${form.paymentMethod === opt.value
-                      ? "border-primary bg-primary/10 text-primary font-semibold"
-                      : "border-border bg-muted/50 text-muted-foreground hover:border-primary/50 hover:text-foreground"
-                    }
-                  `}
-                >
-                  <input
-                    type="radio"
-                    name="paymentMethod"
-                    value={opt.value}
-                    checked={form.paymentMethod === opt.value}
-                    onChange={handleChange}
-                    className="sr-only"
-                  />
-                  <CreditCard className="w-4 h-4" />
-                  {opt.label}
-                </label>
-              ))}
+              {PAYMENT_METHOD_OPTIONS.map((opt) => {
+                const disabled = opt.value === "CASH" && VNPAY_ONLY_OPTIONS.includes(form.paymentOption);
+                return (
+                  <label
+                    key={opt.value}
+                    className={`
+                      flex items-center gap-2 px-4 py-2.5 rounded-lg border
+                      transition-all duration-200 select-none
+                      ${disabled
+                        ? "opacity-40 cursor-not-allowed border-border bg-muted/30 text-muted-foreground"
+                        : form.paymentMethod === opt.value
+                          ? "border-primary bg-primary/10 text-primary font-semibold cursor-pointer"
+                          : "border-border bg-muted/50 text-muted-foreground hover:border-primary/50 hover:text-foreground cursor-pointer"
+                      }
+                    `}
+                  >
+                    <input
+                      type="radio"
+                      name="paymentMethod"
+                      value={opt.value}
+                      checked={form.paymentMethod === opt.value}
+                      onChange={handleChange}
+                      disabled={disabled}
+                      className="sr-only"
+                    />
+                    <CreditCard className="w-4 h-4" />
+                    {opt.label}
+                  </label>
+                );
+              })}
             </div>
           </div>
 
