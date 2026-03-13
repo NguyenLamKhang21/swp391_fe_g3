@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import {
   ClipboardList, CheckCircle, Clock, Loader2, RefreshCw, Search,
   XCircle, AlertCircle, X, Eye, ShieldAlert, Package, ArrowRight,
-  MessageSquare, AlertTriangle, ChevronDown,
+  MessageSquare, AlertTriangle, ChevronDown, DollarSign, ExternalLink,
 } from "lucide-react";
 import { toast } from "react-toastify";
 import {
@@ -16,6 +16,8 @@ import {
   updateOrderStatus,
   updateOrderPriority,
   getCentralKitchenFood,
+  createDebtPayment,
+  getStorePaymentRecords,
 } from "../api/authAPI";
 
 /* ═══════════════════════════════════════════════════════════════════════
@@ -58,6 +60,7 @@ const SupplyCoordinatorOrders = () => {
   const [orderDetail, setOrderDetail]     = useState(null);
   const [storeOrders, setStoreOrders]     = useState([]);
   const [centralFoods, setCentralFoods]   = useState([]);
+  const [paymentRecords, setPaymentRecords] = useState([]);
   const [detailLoading, setDetailLoading] = useState(false);
 
   // Action state
@@ -89,6 +92,7 @@ const SupplyCoordinatorOrders = () => {
     setOrderDetail(null);
     setStoreOrders([]);
     setCentralFoods([]);
+    setPaymentRecords([]);
     setRejectReason("");
     setShowRejectForm(false);
     setSelectedPriority(2);
@@ -96,10 +100,11 @@ const SupplyCoordinatorOrders = () => {
     setDetailLoading(true);
 
     try {
-      const [detailRes, storeRes, foodRes] = await Promise.allSettled([
+      const [detailRes, storeRes, foodRes, payRecRes] = await Promise.allSettled([
         getOrderDetailByOrderId(order.orderId),
         getOrdersByStore(order.storeId),
         getCentralKitchenFood(),
+        getStorePaymentRecords(order.storeId),
       ]);
 
       if (detailRes.status === "fulfilled") {
@@ -113,6 +118,10 @@ const SupplyCoordinatorOrders = () => {
       if (foodRes.status === "fulfilled") {
         const f = foodRes.value.data?.data ?? foodRes.value.data ?? [];
         setCentralFoods(Array.isArray(f) ? f : []);
+      }
+      if (payRecRes.status === "fulfilled") {
+        const p = payRecRes.value.data?.data ?? payRecRes.value.data ?? [];
+        setPaymentRecords(Array.isArray(p) ? p : []);
       }
     } catch {
       toast.error("Lỗi khi tải chi tiết đơn hàng.");
@@ -128,14 +137,9 @@ const SupplyCoordinatorOrders = () => {
     setRejectReason("");
   };
 
-  /* ── Debt check: store has unpaid orders? ── */
-  const hasDebt = storeOrders.some(
-    (o) =>
-      o.orderId !== selectedOrder?.orderId &&
-      o.paymentOption === "PAY_AFTER_ORDER" &&
-      (o.statusOrder === "DELIVERED" || o.statusOrder === "COOKING_DONE") &&
-      o.paymentStatus !== "SUCCESS" && o.paymentStatus !== "PAID"
-  );
+  /* ── Debt check: use actual payment-records API ── */
+  const hasDebt = paymentRecords.length > 0 &&
+    paymentRecords.some((r) => r.debtAmount > 0 && r.status !== "PAID" && r.status !== "SUCCESS");
 
   /* ── Actions ── */
   const PRIORITY_LABELS = { 1: "HIGH", 2: "MEDIUM", 3: "LOW" };
@@ -192,6 +196,31 @@ const SupplyCoordinatorOrders = () => {
       await fetchOrders();
     } catch (err) {
       toast.error(err?.response?.data?.message ?? "Không thể cập nhật trạng thái.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  /* ── VNPay: Tạo link thanh toán nợ cho store ── */
+  const handleDebtPayment = async () => {
+    if (!selectedOrder?.storeId) return;
+    try {
+      setActionLoading(true);
+      console.log("[DebtPayment] storeId:", JSON.stringify(selectedOrder.storeId));
+      const res = await createDebtPayment(selectedOrder.storeId);
+      const paymentUrl = res.data?.data?.paymentUrl ?? res.data?.paymentUrl;
+      if (paymentUrl) {
+        window.open(paymentUrl, "_blank");
+        toast.success("Đã mở trang thanh toán nợ VNPay.");
+      } else {
+        toast.error("Không nhận được link thanh toán nợ.");
+      }
+    } catch (err) {
+      console.error("[DebtPayment] error:", err?.response?.status, err?.response?.data);
+      const msg = err?.response?.data?.message
+        ?? err?.response?.data?.error
+        ?? `Tạo link thanh toán nợ thất bại (HTTP ${err?.response?.status ?? "?"}).`;
+      toast.error(msg);
     } finally {
       setActionLoading(false);
     }
@@ -654,6 +683,29 @@ const SupplyCoordinatorOrders = () => {
                         )}
                       </div>
                     )}
+                  </div>
+                )}
+
+                {/* Refund chỉ có ở MANAGER/ADMIN — không hiện cho Supply Coordinator */}
+
+                {/* ── Section 7: Debt payment for store ── */}
+                {hasDebt && (
+                  <div className="border border-amber-200 rounded-lg p-4 bg-amber-50/50 space-y-2">
+                    <h4 className="text-xs font-semibold text-amber-700 flex items-center gap-1.5">
+                      <DollarSign className="w-3.5 h-3.5" />
+                      Thanh toán công nợ Store
+                    </h4>
+                    <p className="text-[10px] text-amber-600">
+                      Store {selectedOrder.storeId} có nợ chưa thanh toán. Tạo link thanh toán nợ qua VNPay.
+                    </p>
+                    <button
+                      onClick={handleDebtPayment}
+                      disabled={actionLoading}
+                      className="flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 transition-colors disabled:opacity-60"
+                    >
+                      {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ExternalLink className="w-4 h-4" />}
+                      Tạo link thanh toán nợ
+                    </button>
                   </div>
                 )}
 

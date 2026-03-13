@@ -6,7 +6,7 @@ export const createUser = (data) => API.post("/auth/create", data);
 
 export const createOrder = (data) => API.post("/orders", data);
 
-export const getOrdersByStore = (storeId) => API.get(`/orders/orders/${storeId}`);
+export const getOrdersByStore = (storeId) => API.get(`/orders/orders/${encodeURIComponent(storeId)}`);
 
 export const getAllOrders = () => API.get("/orders");
 
@@ -47,3 +47,28 @@ export const getCentralFoodExpiringSoon = (days = 7) =>
 export const getCentralFoodExpired = () => API.get("/central_foods/expired");
 
 export const getOrderByStatus = (status) => API.get(`/orders/status/${status}`);
+
+export const changePaymentOption = (orderId, newOption) =>
+  API.patch(`/orders/change-option/${orderId}`, null, { params: { newOption } });
+
+export const changePaymentMethod = (orderId, newMethod) =>
+  API.patch(`/orders/change-method/${orderId}`, null, { params: { newMethod } });
+
+// ── VNPay Payment ──
+export const createPaymentByOrder = (orderId) =>
+  API.post(`/payment/create-by-order/${orderId}`);
+
+export const createDebtPayment = (storeId) =>
+  API.post(`/payment/debt/${encodeURIComponent(storeId)}`);
+
+export const refundPayment = (orderId, refundType = "02") =>
+  API.post(`/payment/refund/${orderId}`, null, { params: { refundType } });
+
+export const getPaymentByTxnRef = (txnRef) =>
+  API.get(`/payment/${txnRef}`);
+
+export const vnpayReturn = () => API.get("/payment/vnpay-return");
+
+// ── Franchise Store ──
+export const getStorePaymentRecords = (storeId) =>
+  API.get(`/franchise-stores/${encodeURIComponent(storeId)}/payment-records`);
