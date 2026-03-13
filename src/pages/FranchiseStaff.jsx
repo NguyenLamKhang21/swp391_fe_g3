@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { ShoppingCart, Store, CreditCard, FileText, Utensils, Hash, CheckCircle, Loader2, ClipboardList, ChevronDown, ChevronUp, Receipt } from "lucide-react";
+import { ShoppingCart, Store, CreditCard, FileText, Utensils, Hash, CheckCircle, Loader2, ClipboardList, ChevronDown, ChevronUp, Receipt, Plus, Trash2 } from "lucide-react";
 import { toast } from "react-toastify";
 import API from "../api/axios";
 import { getOrdersByStore, getCentralKitchenFood, getOrderDetailByOrderId } from "../api/authAPI";
@@ -19,13 +19,14 @@ const EMPTY_FORM = {
   paymentOption:  "PAY_AFTER_ORDER",
   paymentMethod:  "CREDIT",
   note:           "",
-  foodItem:       "",
-  quantity:       1,
 };
+
+const EMPTY_ITEM = { centralFoodId: "", quantity: 1 };
 
 /* ══════════════════════════════════════════════════════════════════════ */
 const FranchiseStaff = () => {
   const [form,            setForm]          = useState(EMPTY_FORM);
+  const [orderItems,      setOrderItems]    = useState([{ ...EMPTY_ITEM }]);
   const [loading,         setLoading]       = useState(false);
   const [createdOrders,   setCreatedOrders] = useState([]);
   const [lastStoreId,     setLastStoreId]   = useState("");
@@ -109,12 +110,38 @@ const FranchiseStaff = () => {
     });
   };
 
+  const updateItem = (index, field, value) => {
+    setOrderItems((prev) => prev.map((item, i) =>
+      i === index ? { ...item, [field]: field === "quantity" ? Number(value) : value } : item
+    ));
+  };
+
+  const addItem = () => setOrderItems((prev) => [...prev, { ...EMPTY_ITEM }]);
+
+  const removeItem = (index) => {
+    setOrderItems((prev) => prev.length <= 1 ? prev : prev.filter((_, i) => i !== index));
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
     if (!autoStoreId) { toast.error("No store associated with your account."); return; }
-    if (!form.foodItem.trim()) { toast.error("Please enter a Food Item.");  return; }
-    if (form.quantity < 1)    { toast.error("Quantity must be at least 1."); return; }
+
+    const validItems = orderItems.filter((it) => it.centralFoodId && it.quantity >= 1);
+    if (validItems.length === 0) {
+      toast.error("Vui lòng chọn ít nhất 1 món.");
+      return;
+    }
+
+    const seen = new Set();
+    for (const it of validItems) {
+      if (seen.has(it.centralFoodId)) {
+        const name = foods.find((f) => f.foodId === it.centralFoodId)?.foodName ?? it.centralFoodId;
+        toast.error(`Món "${name}" bị trùng. Hãy gộp số lượng vào 1 dòng.`);
+        return;
+      }
+      seen.add(it.centralFoodId);
+    }
 
     const payload = {
       storeId:       autoStoreId,
@@ -122,12 +149,7 @@ const FranchiseStaff = () => {
       paymentMethod: form.paymentMethod,
       note:          form.note,
       orderDetail: {
-        items: [
-          {
-            centralFoodId: form.foodItem,
-            quantity:      form.quantity,
-          },
-        ],
+        items: validItems,
       },
     };
 
@@ -137,10 +159,11 @@ const FranchiseStaff = () => {
 
       await API.post("/orders", payload);
 
-      toast.success(`Order for store "${submittedStoreId}" placed successfully!`);
+      toast.success(`Đặt hàng thành công cho "${submittedStoreId}" (${validItems.length} món).`);
 
       setLastStoreId(submittedStoreId);
       setForm(EMPTY_FORM);
+      setOrderItems([{ ...EMPTY_ITEM }]);
 
       // Fetch real pending orders from the API for that store
       await fetchOrders(submittedStoreId);
@@ -199,52 +222,76 @@ const FranchiseStaff = () => {
             </div>
           </div>
 
-          {/* Food Item */}
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium text-foreground" htmlFor="fs-foodItem">
-              Food Item <span className="text-destructive">*</span>
-            </label>
-            <div className="relative">
-              <Utensils className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-              <select
-                id="fs-foodItem"
-                name="foodItem"
-                value={form.foodItem}
-                onChange={handleChange}
-                required
-                className="um-input pl-10"
+          {/* Order Items */}
+          <div className="space-y-3 md:col-span-2">
+            <div className="flex items-center justify-between">
+              <label className="text-sm font-medium text-foreground">
+                Danh sách món <span className="text-destructive">*</span>
+              </label>
+              <button
+                type="button"
+                onClick={addItem}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
               >
-                <option value="">-- Select Food</option>
-
-                {foods
-                  .filter(f => f.centralFoodStatus === "AVAILABLE")
-                  .map(f => (
-                    <option key={f.foodId} value={f.foodId}>
-                      {f.foodName}
-                    </option>
-                  ))}
-              </select>
+                <Plus className="w-3.5 h-3.5" />
+                Thêm món
+              </button>
             </div>
-          </div>
 
-          {/* Quantity */}
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium text-foreground" htmlFor="fs-quantity">
-              Quantity <span className="text-destructive">*</span>
-            </label>
-            <div className="relative">
-              <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-              <input
-                id="fs-quantity"
-                name="quantity"
-                type="number"
-                min="1"
-                value={form.quantity}
-                onChange={handleChange}
-                required
-                className="um-input pl-10"
-              />
+            <div className="space-y-2">
+              {orderItems.map((item, idx) => {
+                const selectedIds = orderItems.map((it) => it.centralFoodId).filter(Boolean);
+                return (
+                  <div key={idx} className="flex items-center gap-2">
+                    <div className="flex-1 relative">
+                      <Utensils className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                      <select
+                        value={item.centralFoodId}
+                        onChange={(e) => updateItem(idx, "centralFoodId", e.target.value)}
+                        className="um-input pl-10 w-full"
+                      >
+                        <option value="">-- Chọn món</option>
+                        {foods
+                          .filter((f) => f.centralFoodStatus === "AVAILABLE")
+                          .map((f) => (
+                            <option
+                              key={f.foodId}
+                              value={f.foodId}
+                              disabled={selectedIds.includes(f.foodId) && item.centralFoodId !== f.foodId}
+                            >
+                              {f.foodName}
+                            </option>
+                          ))}
+                      </select>
+                    </div>
+                    <div className="w-24 relative">
+                      <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                      <input
+                        type="number"
+                        min="1"
+                        value={item.quantity}
+                        onChange={(e) => updateItem(idx, "quantity", e.target.value)}
+                        className="um-input pl-10 w-full"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => removeItem(idx)}
+                      disabled={orderItems.length <= 1}
+                      className="p-2 rounded-lg text-muted-foreground hover:text-red-600 hover:bg-red-50 transition-colors disabled:opacity-30 disabled:hover:text-muted-foreground disabled:hover:bg-transparent"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                );
+              })}
             </div>
+
+            {orderItems.length > 0 && (
+              <p className="text-xs text-muted-foreground">
+                {orderItems.filter((it) => it.centralFoodId).length} món đã chọn
+              </p>
+            )}
           </div>
 
           {/* Note */}
