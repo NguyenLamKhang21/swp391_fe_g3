@@ -74,5 +74,7 @@ export const getPaymentByTxnRef = (txnRef) =>
 export const vnpayReturn = () => API.get("/payment/vnpay-return");
 
 // ── Franchise Store ──
+export const getAllStore = () => API.get("/franchise-stores");
+
 export const getStorePaymentRecords = (storeId) =>
   API.get(`/franchise-stores/${encodeURIComponent(storeId)}/payment-records`);

@@ -1,4 +1,4 @@
-import { LayoutDashboard, Users } from "lucide-react";
+import { LayoutDashboard, Users, Store } from "lucide-react";
 import MainLayout from "./MainLayout";
 
 /**
@@ -26,7 +26,8 @@ const adminNavItems = [
     section: "Quản lý",
     items: [
       //khúc này chưa rõ lắm
-      { label: "User Management", icon: Users, to: "/admin/users" },
+      { label: "User Management",  icon: Users,  to: "/admin/users"  },
+      { label: "Store Management", icon: Store,  to: "/admin/stores" },
     ],
   },
   // Add more sections/items here as the app grows, e.g.:
@@ -42,14 +43,8 @@ const adminNavItems = [
 
 const adminPageTitles = {
   "/admin":           "Dashboard",
-  "/admin/users":     "User Management", //why??????
-  "/admin/orders":    "Quản lý đơn hàng",
-  "/admin/kitchen":   "Xử lý đơn hàng — Bếp Trung Tâm",
-  "/admin/inventory": "Tồn kho & Nguyên liệu",
-  "/admin/delivery":  "Điều phối & Giao nhận",
-  "/admin/products":  "Sản phẩm",
-  "/admin/analytics": "Thống kê",
-  "/admin/settings":  "Cài đặt",
+  "/admin/users":     "User Management",
+  "/admin/stores":    "Store Management",
 };
 
 const AdminLayout = () => (

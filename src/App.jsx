@@ -6,7 +6,8 @@ import AdminLayout from "./layouts/AdminLayout";
 // Admin pages
 
 import AdminDashboard  from "./pages/AdminDashboard";
-import UserManagement from "./pages/UserManagement"; //huh?
+import UserManagement from "./pages/UserManagement";
+import StoreManagement from "./pages/StoreManagement";
 
 
 // Franchise Staff pages
@@ -71,8 +72,11 @@ const App = () => (
         {/* /admin  → Dashboard (default / index page) */}
         <Route index element={<AdminDashboard />} />
 
-        {/* /admin/users  → User Management (ADMIN only — protected by parent route) */}
-        <Route path="users" element={<UserManagement />} /> 
+        {/* /admin/users  → User Management */}
+        <Route path="users"  element={<UserManagement />} />
+
+        {/* /admin/stores → Store Management */}
+        <Route path="stores" element={<StoreManagement />} />
 
         {/* 👇 Add more pages here following the same pattern */}
       </Route>
