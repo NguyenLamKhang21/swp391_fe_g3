@@ -1,92 +1,131 @@
-import { useState } from "react";
-import { UserPlus, User, Mail, Lock, Phone, Shield, CheckCircle, XCircle, Loader2, Eye, EyeOff } from "lucide-react";
+import { useState, useEffect } from "react";
+import {
+  UserPlus, User, Mail, Lock, Phone, Shield,
+  CheckCircle, Loader2, Eye, EyeOff,
+  RefreshCw, Search, Users, AlertTriangle,
+} from "lucide-react";
 import { toast } from "react-toastify";
-import { createUser } from "../api/authAPI";
+import { createUser, getAllUsers } from "../api/authAPI";
 
-/* ─── Role options — must match the `roles` table in the database ─── */
-const ROLES = [
-  { id: 1, label: "Admin",                 color: "badge-role-admin"      },
-  { id: 2, label: "Supply Coordinator",    color: "badge-role-supply"     },
-  { id: 3, label: "Central Kitchen Staff", color: "badge-role-kitchen"    },
-  { id: 4, label: "Manager",               color: "badge-role-manager"    },
-  { id: 5, label: "Franchise Staff",       color: "badge-role-franchise"  },
-];
-
-const EMPTY_FORM = {
-  fullName: "",
-  email:    "",
-  password: "",
-  phone:    "",
-  idRole:   1,
+/* ─── Role config ─── */
+const ROLE_META = {
+  ADMIN:                   { label: "Admin",                  color: "badge-role-admin"    },
+  MANAGER:                 { label: "Manager",                color: "badge-role-manager"  },
+  SUPPLY_COORDINATOR:      { label: "Supply Coordinator",     color: "badge-role-supply"   },
+  CENTRAL_KITCHEN_STAFF:   { label: "Central Kitchen Staff",  color: "badge-role-kitchen"  },
+  FRANCHISE_STAFF:         { label: "Franchise Staff",        color: "badge-role-franchise"},
 };
 
-/* ─── Small helper: role badge ─── */
-const RoleBadge = ({ roleId }) => {
-  const role = ROLES.find((r) => r.id === Number(roleId));
-  if (!role) return <span className="badge badge-pending">{roleId}</span>;
-  return <span className={`badge ${role.color}`}>{role.label}</span>;
+const ROLES_CREATE = [
+  { id: 1, label: "Admin",                  key: "ADMIN"                 },
+  { id: 2, label: "Supply Coordinator",     key: "SUPPLY_COORDINATOR"    },
+  { id: 3, label: "Central Kitchen Staff",  key: "CENTRAL_KITCHEN_STAFF" },
+  { id: 4, label: "Manager",                key: "MANAGER"               },
+  { id: 5, label: "Franchise Staff",        key: "FRANCHISE_STAFF"       },
+];
+
+const EMPTY_FORM = { fullName: "", email: "", password: "", phone: "", idRole: 1 };
+
+/* ─── Helpers ─── */
+const RoleBadge = ({ role }) => {
+  const meta = ROLE_META[role];
+  if (!meta) return <span className="badge badge-pending">{role}</span>;
+  return <span className={`badge ${meta.color}`}>{meta.label}</span>;
+};
+
+const Avatar = ({ name }) => (
+  <div className="w-9 h-9 rounded-full admin-avatar flex items-center justify-center text-primary-foreground text-sm font-bold flex-shrink-0">
+    {(name ?? "?").charAt(0).toUpperCase()}
+  </div>
+);
+
+const fmtDate = (iso) => {
+  if (!iso) return "—";
+  return new Date(iso).toLocaleString("vi-VN", {
+    day: "2-digit", month: "2-digit", year: "numeric",
+    hour: "2-digit", minute: "2-digit",
+  });
 };
 
 /* ══════════════════════════════════════════════════════════════════════ */
 const UserManagement = () => {
-  const [form,       setForm]       = useState(EMPTY_FORM);
-  const [showPw,     setShowPw]     = useState(false);
-  const [loading,    setLoading]    = useState(false);
-  const [createdUsers, setCreatedUsers] = useState([]);  // list of users created this session
+  /* ── form state ── */
+  const [form,    setForm]    = useState(EMPTY_FORM);
+  const [showPw,  setShowPw]  = useState(false);
+  const [creating, setCreating] = useState(false);
 
-  /* ── handlers ── */
+  /* ── users table state ── */
+  const [users,    setUsers]    = useState([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+  const [fetchError,   setFetchError]   = useState(null);
+  const [search,  setSearch]  = useState("");
+
+  /* ── fetch all users ── */
+  const fetchUsers = async () => {
+    setLoadingUsers(true);
+    setFetchError(null);
+    try {
+      const res = await getAllUsers();
+      // Support both array response and wrapped { data: [...] }
+      const list = Array.isArray(res.data)
+        ? res.data
+        : Array.isArray(res.data?.data)
+          ? res.data.data
+          : [];
+      setUsers(list);
+    } catch (err) {
+      const msg = err?.response?.data?.message ?? "Failed to load users.";
+      setFetchError(msg);
+    } finally {
+      setLoadingUsers(false);
+    }
+  };
+
+  useEffect(() => { fetchUsers(); }, []);
+
+  /* ── form handlers ── */
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setForm((prev) => ({
-      ...prev,
-      [name]: name === "idRole" ? Number(value) : value,
-    }));
+    setForm((prev) => ({ ...prev, [name]: name === "idRole" ? Number(value) : value }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
-    // Basic client-side validation
     if (!form.fullName.trim()) { toast.error("Please enter a full name.");  return; }
     if (!form.email.trim())    { toast.error("Please enter an email.");     return; }
     if (!form.password)        { toast.error("Please enter a password.");   return; }
 
     try {
-      setLoading(true);
+      setCreating(true);
       const res = await createUser(form);
-
-      // Expecting: { statusCode, message, data: { token, email, fullName, role, userId, ... } }
       const payload = res.data;
 
       if (payload?.statusCode === 0 || payload?.data) {
-        const created = payload?.data ?? {};
-        toast.success(`Account for "${form.fullName}" created successfully!`);
-
-        // Add to the session table
-        setCreatedUsers((prev) => [
-          {
-            userId:   created.userId   ?? `#${Date.now()}`,
-            fullName: created.fullName ?? form.fullName,
-            email:    created.email    ?? form.email,
-            role:     form.idRole,
-            createdAt: new Date().toLocaleString("vi-VN"),
-          },
-          ...prev,
-        ]);
-
+        toast.success(`Account "${form.fullName}" created successfully!`);
         setForm(EMPTY_FORM);
+        fetchUsers(); // refresh the table
       } else {
         toast.error(payload?.message ?? "Failed to create account.");
       }
     } catch (err) {
-      const msg = err?.response?.data?.message ?? "Server error — please try again.";
-      toast.error(msg);
+      toast.error(err?.response?.data?.message ?? "Server error — please try again.");
     } finally {
-      setLoading(false);
+      setCreating(false);
     }
   };
 
-  /* ── render ── */
+  /* ── filtered users ── */
+  const filtered = users.filter((u) => {
+    const q = search.toLowerCase();
+    return (
+      u.fullName?.toLowerCase().includes(q) ||
+      u.email?.toLowerCase().includes(q) ||
+      u.role?.toLowerCase().includes(q) ||
+      u.phone?.includes(q)
+    );
+  });
+
+  /* ══ render ══ */
   return (
     <div className="animate-fade-in space-y-8">
 
@@ -95,7 +134,7 @@ const UserManagement = () => {
         <div>
           <h2 className="text-2xl font-bold text-foreground">User Management</h2>
           <p className="text-sm text-muted-foreground mt-0.5">
-            Create new accounts for any role. Only admins can access this page.
+            Manage all system accounts. Only admins can access this page.
           </p>
         </div>
         <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-primary/10 border border-primary/20">
@@ -125,15 +164,8 @@ const UserManagement = () => {
             </label>
             <div className="relative">
               <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-              <input
-                id="um-fullName"
-                name="fullName"
-                value={form.fullName}
-                onChange={handleChange}
-                placeholder="Nguyễn Văn A"
-                required
-                className="um-input pl-10"
-              />
+              <input id="um-fullName" name="fullName" value={form.fullName} onChange={handleChange}
+                placeholder="Nguyễn Văn A" required className="um-input pl-10" />
             </div>
           </div>
 
@@ -144,16 +176,8 @@ const UserManagement = () => {
             </label>
             <div className="relative">
               <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-              <input
-                id="um-email"
-                name="email"
-                type="email"
-                value={form.email}
-                onChange={handleChange}
-                placeholder="user@example.com"
-                required
-                className="um-input pl-10"
-              />
+              <input id="um-email" name="email" type="email" value={form.email} onChange={handleChange}
+                placeholder="user@example.com" required className="um-input pl-10" />
             </div>
           </div>
 
@@ -164,22 +188,12 @@ const UserManagement = () => {
             </label>
             <div className="relative">
               <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-              <input
-                id="um-password"
-                name="password"
-                type={showPw ? "text" : "password"}
-                value={form.password}
-                onChange={handleChange}
-                placeholder="••••••••"
-                required
-                className="um-input pl-10 pr-10"
-              />
-              <button
-                type="button"
-                onClick={() => setShowPw((v) => !v)}
+              <input id="um-password" name="password" type={showPw ? "text" : "password"}
+                value={form.password} onChange={handleChange}
+                placeholder="••••••••" required className="um-input pl-10 pr-10" />
+              <button type="button" onClick={() => setShowPw((v) => !v)}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                tabIndex={-1}
-              >
+                tabIndex={-1}>
                 {showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
             </div>
@@ -187,19 +201,11 @@ const UserManagement = () => {
 
           {/* Phone */}
           <div className="space-y-1.5">
-            <label className="text-sm font-medium text-foreground" htmlFor="um-phone">
-              Phone
-            </label>
+            <label className="text-sm font-medium text-foreground" htmlFor="um-phone">Phone</label>
             <div className="relative">
               <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-              <input
-                id="um-phone"
-                name="phone"
-                value={form.phone}
-                onChange={handleChange}
-                placeholder="0901234567"
-                className="um-input pl-10"
-              />
+              <input id="um-phone" name="phone" value={form.phone} onChange={handleChange}
+                placeholder="0901234567" className="um-input pl-10" />
             </div>
           </div>
 
@@ -209,26 +215,15 @@ const UserManagement = () => {
               Role <span className="text-destructive">*</span>
             </label>
             <div className="flex flex-wrap gap-3">
-              {ROLES.map((role) => (
-                <label
-                  key={role.id}
-                  className={`
-                    flex items-center gap-2 px-4 py-2.5 rounded-lg border cursor-pointer
-                    transition-all duration-200 select-none
+              {ROLES_CREATE.map((role) => (
+                <label key={role.id}
+                  className={`flex items-center gap-2 px-4 py-2.5 rounded-lg border cursor-pointer transition-all duration-200 select-none
                     ${form.idRole === role.id
                       ? "border-primary bg-primary/10 text-primary font-semibold"
                       : "border-border bg-muted/50 text-muted-foreground hover:border-primary/50 hover:text-foreground"
-                    }
-                  `}
-                >
-                  <input
-                    type="radio"
-                    name="idRole"
-                    value={role.id}
-                    checked={form.idRole === role.id}
-                    onChange={handleChange}
-                    className="sr-only"
-                  />
+                    }`}>
+                  <input type="radio" name="idRole" value={role.id}
+                    checked={form.idRole === role.id} onChange={handleChange} className="sr-only" />
                   <Shield className="w-4 h-4" />
                   {role.label}
                 </label>
@@ -238,93 +233,166 @@ const UserManagement = () => {
 
           {/* Submit */}
           <div className="md:col-span-2 flex justify-end pt-2">
-            <button
-              id="um-submit-btn"
-              type="submit"
-              disabled={loading}
-              className="
-                flex items-center gap-2 px-6 py-2.5 rounded-lg
-                bg-primary text-primary-foreground font-semibold text-sm
-                hover:opacity-90 active:scale-[0.98]
-                transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed
-              "
-            >
-              {loading
-                ? <><Loader2 className="w-4 h-4 animate-spin" /> Creating…</>
-                : <><UserPlus className="w-4 h-4" /> Create Account</>
-              }
+            <button id="um-submit-btn" type="submit" disabled={creating}
+              className="flex items-center gap-2 px-6 py-2.5 rounded-lg bg-primary text-primary-foreground font-semibold text-sm
+                hover:opacity-90 active:scale-[0.98] transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed">
+              {creating
+                ? <><Loader2 className="w-4 h-4 animate-spin" />Creating…</>
+                : <><UserPlus className="w-4 h-4" />Create Account</>}
             </button>
           </div>
         </form>
       </div>
 
-      {/* ── Created Users Table (session only) ── */}
-      {createdUsers.length > 0 && (
-        <div className="admin-card rounded-xl overflow-hidden">
-          <div className="px-6 py-4 border-b border-border flex items-center justify-between">
-            <div>
-              <h3 className="text-base font-semibold text-foreground">Recently Created</h3>
-              <p className="text-xs text-muted-foreground mt-0.5">Accounts created this session</p>
+      {/* ── All Users Table ── */}
+      <div className="admin-card rounded-xl overflow-hidden">
+        {/* Table Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-6 py-4 border-b border-border">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
+              <Users className="w-5 h-5 text-primary" />
             </div>
-            <span className="badge badge-delivered">{createdUsers.length} created</span>
+            <div>
+              <h3 className="text-base font-semibold text-foreground">All Users</h3>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {loadingUsers ? "Loading…" : `${filtered.length} user${filtered.length !== 1 ? "s" : ""} found`}
+              </p>
+            </div>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="admin-table-header">
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">User</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">Email</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">Role</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">Created At</th>
-                  <th className="px-6 py-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider">Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {createdUsers.map((u, i) => (
-                  <tr key={u.userId} className="admin-table-row">
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full admin-avatar flex items-center justify-center text-primary-foreground text-xs font-bold flex-shrink-0">
-                          {u.fullName.charAt(0).toUpperCase()}
-                        </div>
-                        <div>
-                          <p className="font-medium text-foreground">{u.fullName}</p>
-                          <p className="text-xs text-muted-foreground">ID: {u.userId}</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-foreground">{u.email}</td>
-                    <td className="px-6 py-4"><RoleBadge roleId={u.role} /></td>
-                    <td className="px-6 py-4 text-muted-foreground">{u.createdAt}</td>
-                    <td className="px-6 py-4 text-center">
-                      <span className="inline-flex items-center gap-1.5 text-xs font-medium text-green-600">
-                        <CheckCircle className="w-4 h-4" />
-                        Active
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="flex items-center gap-2">
+            {/* Search */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+              <input
+                id="um-search"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search users…"
+                className="um-input pl-9 py-2 text-sm w-52"
+              />
+            </div>
+            {/* Refresh */}
+            <button
+              id="um-refresh-btn"
+              onClick={fetchUsers}
+              disabled={loadingUsers}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-border text-sm text-foreground hover:bg-muted transition-colors disabled:opacity-50"
+            >
+              <RefreshCw className={`w-4 h-4 ${loadingUsers ? "animate-spin" : ""}`} />
+              Refresh
+            </button>
           </div>
         </div>
-      )}
 
-      {/* ── Empty state ── */}
-      {createdUsers.length === 0 && (
-        <div className="admin-card rounded-xl p-12 flex flex-col items-center gap-4 text-center">
-          <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center">
-            <User className="w-8 h-8 text-muted-foreground" />
+        {/* Loading skeleton */}
+        {loadingUsers && (
+          <div className="flex flex-col items-center justify-center gap-3 py-16 text-muted-foreground">
+            <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            <p className="text-sm">Loading users…</p>
           </div>
-          <div>
-            <p className="text-base font-semibold text-foreground">No accounts created yet</p>
-            <p className="text-sm text-muted-foreground mt-1">
-              Fill in the form above and click <strong>Create Account</strong> to get started.
+        )}
+
+        {/* Error */}
+        {!loadingUsers && fetchError && (
+          <div className="flex flex-col items-center gap-3 py-14 text-center px-6">
+            <div className="w-14 h-14 rounded-full bg-red-100 flex items-center justify-center">
+              <AlertTriangle className="w-7 h-7 text-red-500" />
+            </div>
+            <p className="text-base font-semibold text-foreground">Failed to load users</p>
+            <p className="text-sm text-muted-foreground">{fetchError}</p>
+            <button onClick={fetchUsers}
+              className="mt-1 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 transition-all">
+              Try Again
+            </button>
+          </div>
+        )}
+
+        {/* Table */}
+        {!loadingUsers && !fetchError && (
+          <div className="overflow-x-auto">
+            {filtered.length === 0 ? (
+              <div className="flex flex-col items-center gap-3 py-14 text-center">
+                <div className="w-14 h-14 rounded-full bg-muted flex items-center justify-center">
+                  <User className="w-7 h-7 text-muted-foreground" />
+                </div>
+                <p className="text-base font-semibold text-foreground">No users found</p>
+                <p className="text-sm text-muted-foreground">
+                  {search ? "Try a different search term." : "No users in the system yet."}
+                </p>
+              </div>
+            ) : (
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="admin-table-header">
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">User</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider hidden sm:table-cell">Phone</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">Role</th>
+                    <th className="px-6 py-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider">Status</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider hidden lg:table-cell">Created At</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {filtered.map((u, idx) => (
+                    <tr key={u.id ?? idx} className="admin-table-row" style={{ animationDelay: `${idx * 40}ms` }}>
+
+                      {/* User cell */}
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          <Avatar name={u.fullName} />
+                          <div className="min-w-0">
+                            <p className="font-medium text-foreground truncate">{u.fullName}</p>
+                            <p className="text-xs text-muted-foreground truncate">{u.email}</p>
+                          </div>
+                        </div>
+                      </td>
+
+                      {/* Phone */}
+                      <td className="px-6 py-4 text-muted-foreground hidden sm:table-cell whitespace-nowrap">
+                        {u.phone ?? "—"}
+                      </td>
+
+                      {/* Role */}
+                      <td className="px-6 py-4">
+                        <RoleBadge role={u.role} />
+                      </td>
+
+                      {/* Status */}
+                      <td className="px-6 py-4 text-center">
+                        {u.active ? (
+                          <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
+                            <CheckCircle className="w-3.5 h-3.5" />
+                            Active
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-red-500 bg-red-50 px-2.5 py-1 rounded-full border border-red-200">
+                            <AlertTriangle className="w-3.5 h-3.5" />
+                            Inactive
+                          </span>
+                        )}
+                      </td>
+
+                      {/* Created At */}
+                      <td className="px-6 py-4 text-muted-foreground text-xs hidden lg:table-cell whitespace-nowrap">
+                        {fmtDate(u.createdAt)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        )}
+
+        {/* Footer */}
+        {!loadingUsers && !fetchError && filtered.length > 0 && (
+          <div className="px-6 py-3 border-t border-border">
+            <p className="text-xs text-muted-foreground">
+              Showing {filtered.length} of {users.length} users
             </p>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 };

@@ -1,5 +1,7 @@
 import API from "./axios";
 
+export const getAllUsers = () => API.get("/auth");
+
 export const login = (data) => API.post("/auth/login", data);
 
 export const createUser = (data) => API.post("/auth/create", data);
