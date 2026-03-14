@@ -4,11 +4,13 @@ import {
   ClipboardList, CheckCircle, Clock, Loader2, RefreshCw, Search,
   XCircle, AlertCircle, X, Eye, ShieldAlert, Package, ArrowRight,
   MessageSquare, AlertTriangle, ChevronDown, DollarSign, ExternalLink,
+  FileText,
 } from "lucide-react";
 import { toast } from "react-toastify";
 import {
   getAllOrders,
   getPendingOrders,
+  getOrderById,
   getOrderDetailByOrderId,
   getOrdersByStore,
   confirmOrder,
@@ -58,6 +60,7 @@ const SupplyCoordinatorOrders = () => {
   // Modal state
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [orderDetail, setOrderDetail]     = useState(null);
+  const [orderNote, setOrderNote]         = useState("");
   const [storeOrders, setStoreOrders]     = useState([]);
   const [centralFoods, setCentralFoods]   = useState([]);
   const [paymentRecords, setPaymentRecords] = useState([]);
@@ -90,6 +93,7 @@ const SupplyCoordinatorOrders = () => {
   const openOrderDetail = async (order) => {
     setSelectedOrder(order);
     setOrderDetail(null);
+    setOrderNote("");
     setStoreOrders([]);
     setCentralFoods([]);
     setPaymentRecords([]);
@@ -100,13 +104,18 @@ const SupplyCoordinatorOrders = () => {
     setDetailLoading(true);
 
     try {
-      const [detailRes, storeRes, foodRes, payRecRes] = await Promise.allSettled([
+      const [orderRes, detailRes, storeRes, foodRes, payRecRes] = await Promise.allSettled([
+        getOrderById(order.orderId),
         getOrderDetailByOrderId(order.orderId),
         getOrdersByStore(order.storeId),
         getCentralKitchenFood(),
         getStorePaymentRecords(order.storeId),
       ]);
 
+      if (orderRes.status === "fulfilled") {
+        const o = orderRes.value.data?.data ?? orderRes.value.data;
+        setOrderNote(o?.note ?? "");
+      }
       if (detailRes.status === "fulfilled") {
         const d = detailRes.value.data?.data ?? detailRes.value.data;
         setOrderDetail(d ?? null);
@@ -133,6 +142,7 @@ const SupplyCoordinatorOrders = () => {
   const closeModal = () => {
     setSelectedOrder(null);
     setOrderDetail(null);
+    setOrderNote("");
     setShowRejectForm(false);
     setRejectReason("");
   };
@@ -353,7 +363,8 @@ const SupplyCoordinatorOrders = () => {
                   <th className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">Order Date</th>
                   <th className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">Priority</th>
                   <th className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">Payment</th>
-                  <th className="px-6 py-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider">Status</th>
+                  <th className="px-6 py-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider">Order Status</th>
+                  <th className="px-6 py-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider">Payment Status</th>
                   <th className="px-6 py-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider">Action</th>
                 </tr>
               </thead>
@@ -381,6 +392,23 @@ const SupplyCoordinatorOrders = () => {
                         <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full border ${st.bg} ${st.color} ${st.border}`}>
                           <StIcon className="w-3.5 h-3.5" />
                           {o.statusOrder}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-center">
+                        <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full ${
+                          o.paymentStatus === "SUCCESS" || o.paymentStatus === "PAID"
+                            ? "bg-emerald-100 text-emerald-700" :
+                          o.paymentStatus === "FAILED"
+                            ? "bg-red-100 text-red-600" :
+                          o.paymentStatus === "PENDING"
+                            ? "bg-amber-100 text-amber-700" :
+                          "bg-muted text-muted-foreground"
+                        }`}>
+                          {o.paymentStatus === "SUCCESS" || o.paymentStatus === "PAID"
+                            ? <CheckCircle className="w-3.5 h-3.5" />
+                            : <Clock className="w-3.5 h-3.5" />
+                          }
+                          {o.paymentStatus ?? "—"}
                         </span>
                       </td>
                       <td className="px-6 py-4 text-center">
@@ -465,6 +493,14 @@ const SupplyCoordinatorOrders = () => {
                         <span className="text-xs text-muted-foreground font-normal">#{orderDetail.orderDetailId}</span>
                       </h4>
                     </div>
+
+                    {/* Note callout */}
+                    {orderNote && (
+                      <div className="flex items-start gap-2 px-4 py-3 bg-amber-50 border-b border-amber-200 text-sm text-amber-800">
+                        <FileText className="w-4 h-4 mt-0.5 flex-shrink-0 text-amber-500" />
+                        <span><span className="font-semibold">Note:</span> {orderNote}</span>
+                      </div>
+                    )}
                     <div className="overflow-x-auto">
                       <table className="w-full text-xs">
                         <thead>

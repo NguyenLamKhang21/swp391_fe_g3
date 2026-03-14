@@ -549,6 +549,14 @@ const FranchiseStaff = () => {
                                     <span className="text-xs text-muted-foreground ml-1">#{detail.orderDetailId}</span>
                                   </div>
 
+                                  {/* note */}
+                                  {o.note && (
+                                    <div className="flex items-start gap-2 px-3 py-2.5 rounded-lg bg-amber-50 border border-amber-200 text-sm text-amber-800">
+                                      <FileText className="w-4 h-4 mt-0.5 flex-shrink-0 text-amber-500" />
+                                      <span><span className="font-semibold">Note:</span> {o.note}</span>
+                                    </div>
+                                  )}
+
                                   {/* items mini-table */}
                                   <div className="rounded-lg overflow-hidden border border-border">
                                     <table className="w-full text-xs">
