@@ -1,8 +1,9 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { ShoppingCart, Store, CreditCard, FileText, Utensils, Hash, CheckCircle, Loader2, ClipboardList, ChevronDown, ChevronUp, Receipt, Plus, Trash2 } from "lucide-react";
 import { toast } from "react-toastify";
 import API from "../api/axios";
-import { getOrdersByStore, getCentralKitchenFood, getOrderDetailByOrderId } from "../api/authAPI";
+import { getOrdersByStore, getCentralKitchenFood, getOrderDetailByOrderId, createPaymentByOrder } from "../api/authAPI";
 
 const PAYMENT_OPTIONS = [
   { value: "PAY_AFTER_ORDER",         label: "Pay After Order"              },
@@ -25,6 +26,7 @@ const EMPTY_ITEM = { centralFoodId: "", quantity: 1 };
 
 /* ══════════════════════════════════════════════════════════════════════ */
 const FranchiseStaff = () => {
+  const navigate = useNavigate();
   const [form,            setForm]          = useState(EMPTY_FORM);
   const [orderItems,      setOrderItems]    = useState([{ ...EMPTY_ITEM }]);
   const [loading,         setLoading]       = useState(false);
@@ -32,8 +34,8 @@ const FranchiseStaff = () => {
   const [lastStoreId,     setLastStoreId]   = useState("");
   const [foods,           setFoods]         = useState([]);
   const [expandedOrderId, setExpandedOrderId] = useState(null);
-  const [orderDetails,    setOrderDetails]  = useState({});   // { [orderId]: detailObj } a cache map { [orderId]: detailObj } so the API is only called once per order
-  const [detailLoading,   setDetailLoading] = useState(null); // orderId being loaded tracks which row is currently fetching (to show a spinner)
+  const [orderDetails,    setOrderDetails]  = useState({});
+  const [detailLoading,   setDetailLoading] = useState(null);
 
   // Read store info from localStorage (set at login for FRANCHISE_STAFF)
   const storeInfo = (() => {
@@ -153,11 +155,18 @@ const FranchiseStaff = () => {
       },
     };
 
+    const shouldAutoPayVnPay =
+      form.paymentMethod === "CREDIT" && form.paymentOption === "PAY_AFTER_ORDER";
+
     try {
       setLoading(true);
       const submittedStoreId = autoStoreId;
 
-      await API.post("/orders", payload);
+      const orderRes = await API.post("/orders", payload);
+      const resData = orderRes.data?.data ?? orderRes.data;
+      const newOrderId = resData?.orderId ?? null;
+
+      console.log("[Place Order] response:", orderRes.data, "→ orderId:", newOrderId);
 
       toast.success(`Đặt hàng thành công cho "${submittedStoreId}" (${validItems.length} món).`);
 
@@ -165,7 +174,23 @@ const FranchiseStaff = () => {
       setForm(EMPTY_FORM);
       setOrderItems([{ ...EMPTY_ITEM }]);
 
-      // Fetch real pending orders from the API for that store
+      if (shouldAutoPayVnPay && newOrderId) {
+        try {
+          const payRes = await createPaymentByOrder(newOrderId);
+          const payData = payRes.data?.data ?? payRes.data;
+          const paymentUrl = payData?.paymentUrl;
+          const txnRef     = payData?.txnRef;
+          if (paymentUrl) {
+            window.__vnpayPopup = window.open(paymentUrl, "_blank");
+            navigate(`/payment/vnpay-return?txnRef=${txnRef}&orderId=${newOrderId}`);
+            return;
+          }
+        } catch (payErr) {
+          console.error("[VNPay] create payment failed:", payErr);
+          toast.warn("Tạo đơn thành công nhưng chưa tạo được link thanh toán.");
+        }
+      }
+
       await fetchOrders(submittedStoreId);
     } catch (err) {
       const msg = err?.response?.data?.message ?? "Server error — please try again.";
@@ -430,7 +455,8 @@ const FranchiseStaff = () => {
                   <th className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">Order Date</th>
                   <th className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">Priority</th>
                   <th className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">Payment</th>
-                  <th className="px-6 py-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider">Status</th>
+                  <th className="px-6 py-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider">Order Status</th>
+                  <th className="px-6 py-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider">Payment Status</th>
                   <th className="px-6 py-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider">Details</th>
                 </tr>
               </thead>
@@ -441,9 +467,9 @@ const FranchiseStaff = () => {
                   const detail = orderDetails[o.orderId];
 
                   return (
-                    <>
+                    <React.Fragment key={o.orderId}>
                       {/* ── Main row ── */}
-                      <tr key={o.orderId} className="admin-table-row">
+                      <tr className="admin-table-row">
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-3">
                             <div className="w-8 h-8 rounded-full admin-avatar flex items-center justify-center text-primary-foreground text-xs font-bold flex-shrink-0">
@@ -463,11 +489,28 @@ const FranchiseStaff = () => {
                             o.statusOrder === "PENDING"    ? "bg-amber-100 text-amber-700" :
                             o.statusOrder === "CANCELLED"  ? "bg-red-100 text-red-600" :
                             o.statusOrder === "COMPLETED" || o.statusOrder === "DELIVERED" ? "bg-green-100 text-green-700" :
-                            o.statusOrder === "PROCESSING" ? "bg-blue-100 text-blue-700" :
+                            o.statusOrder === "IN_PROGRESS" ? "bg-blue-100 text-blue-700" :
                             "bg-muted text-muted-foreground"
                           }`}>
                             <CheckCircle className="w-3.5 h-3.5" />
                             {o.statusOrder ?? "—"}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-center">
+                          <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full ${
+                            o.paymentStatus === "SUCCESS" || o.paymentStatus === "PAID"
+                              ? "bg-emerald-100 text-emerald-700" :
+                            o.paymentStatus === "FAILED"
+                              ? "bg-red-100 text-red-600" :
+                            o.paymentStatus === "PENDING"
+                              ? "bg-amber-100 text-amber-700" :
+                            "bg-muted text-muted-foreground"
+                          }`}>
+                            {o.paymentStatus === "SUCCESS" || o.paymentStatus === "PAID"
+                              ? <CheckCircle className="w-3.5 h-3.5" />
+                              : <CreditCard className="w-3.5 h-3.5" />
+                            }
+                            {o.paymentStatus ?? "—"}
                           </span>
                         </td>
                         {/* Details toggle */}
@@ -491,7 +534,7 @@ const FranchiseStaff = () => {
                       {/* ── Expandable detail sub-row ── */}
                       {isExpanded && (
                         <tr key={`${o.orderId}-detail`}>
-                          <td colSpan={7} className="px-0 py-0 bg-muted/30 border-b border-border">
+                          <td colSpan={8} className="px-0 py-0 bg-muted/30 border-b border-border">
                             <div className="px-8 py-5">
                               {!detail ? (
                                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -543,7 +586,7 @@ const FranchiseStaff = () => {
                           </td>
                         </tr>
                       )}
-                    </>
+                    </React.Fragment>
                   );
                 })}
               </tbody>

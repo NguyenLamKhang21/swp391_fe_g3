@@ -12,6 +12,7 @@ import UserManagement from "./pages/UserManagement"; //huh?
 // Franchise Staff pages
 import FranchiseStaffLayout from "./layouts/FranchiseStaffLayout";
 import FranchiseStaff from "./pages/FranchiseStaff";
+import FranchiseDebtPayment from "./pages/FranchiseDebtPayment";
 
 // Supply Coordinator pages
 import SupplyCoordinatorLayout from "./layouts/SupplyCoordinatorLayout";
@@ -23,6 +24,8 @@ import CentralKitchenOrders from "./pages/CentralKitchenOrders";
 import CentralKitchenInventory from "./pages/CentralKitchenInventory";
 import CentralKitchenOrderManagement from "./pages/CentralKitchenOrderManagement";
 
+import VNPayReturn from "./pages/VNPayReturn";
+
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
@@ -32,6 +35,7 @@ const App = () => (
       {/* ── Public routes ─────────────────────────────────────────────── */}
       <Route path="/"         element={<Login />} />
       <Route path="/login"    element={<Login />} />
+      <Route path="/payment/vnpay-return" element={<VNPayReturn />} />
     
       
 
@@ -83,6 +87,7 @@ const App = () => (
       >
         <Route index element={<FranchiseStaff />} />
         <Route path="inventory-ordering" element={<FranchiseStaff />} />
+        <Route path="debt-payment" element={<FranchiseDebtPayment />} />
       </Route>
 
       {/* ── Supply Coordinator routes ──────────────────────────────────── */}
