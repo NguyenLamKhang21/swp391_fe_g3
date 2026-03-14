@@ -2,10 +2,10 @@ import { useState, useEffect } from "react";
 import {
   Store, RefreshCw, Search, AlertTriangle,
   Loader2, MapPin, Phone, Mail, Shield,
-  Building2, DollarSign, CreditCard, CheckCircle, XCircle,
+  Building2, DollarSign, CreditCard, CheckCircle, XCircle, Plus,
 } from "lucide-react";
 import { toast } from "react-toastify";
-import { getAllStore } from "../api/authAPI";
+import { getAllStore, createNewFranchiseStore } from "../api/authAPI";
 
 /* ─── Debt Status Badge ─── */
 const DebtBadge = ({ deptStatus }) =>
@@ -35,6 +35,15 @@ const fmtRevenue = (n) => {
   return new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(n);
 };
 
+//form cho tạo store mới
+const EMPTY_STORE_FORM = {
+  storeName: "",
+  address:   "",
+  district:  "",
+  ward:      "",
+  revenue:   "",
+}
+
 /* ─── Store avatar ─── */
 const StoreAvatar = ({ name }) => (
   <div className="w-9 h-9 rounded-xl admin-sidebar-brand flex items-center justify-center text-primary-foreground text-sm font-bold flex-shrink-0">
@@ -62,6 +71,8 @@ const StoreManagement = () => {
   const [fetchError, setFetchError] = useState(null);
   const [search,     setSearch]     = useState("");
   const [debtFilter, setDebtFilter] = useState("ALL"); // ALL | DEBT | CLEAR
+  const [storeForm, setStoreForm] = useState(EMPTY_STORE_FORM);
+  const [creating, setCreating] = useState(false);
 
   /* ── Fetch ── */
   const fetchStores = async () => {
@@ -81,6 +92,51 @@ const StoreManagement = () => {
       toast.error(msg);
     } finally {
       setLoading(false);
+    }
+  };
+
+  /* ── Form handlers ── */
+  const handleStoreChange = (e) => {
+    const { name, value } = e.target;
+    setStoreForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleCreateStore = async (e) => {
+    e.preventDefault(); // stops the browser from refreshing the page
+
+    // validation
+    if (!storeForm.storeName.trim()) {
+      toast.error("Store name is required");
+      return;
+    }
+    if (!storeForm.address.trim()) {
+      toast.error("Address is required");
+      return;
+    }
+
+    try {
+      setCreating(true);
+
+      // request body - revenue must be number, not string
+      const payload = {
+        ...storeForm,
+        revenue: storeForm.revenue === "" ? 0 : Number(storeForm.revenue),
+      };
+
+      const res = await createNewFranchiseStore(payload);
+
+      // check if res success
+      if (res.data?.statusCode === 0 || res.data?.data) {
+        toast.success("Store created successfully!");
+        setStoreForm(EMPTY_STORE_FORM); // clear form after success
+        fetchStores(); // refresh the table
+      } else {
+        toast.error(res.data?.message ?? "Failed to create store");
+      }
+    } catch (err) {
+      toast.error(err?.response?.data?.message ?? "Server error - please try again");
+    } finally {
+      setCreating(false);
     }
   };
 
@@ -137,6 +193,99 @@ const StoreManagement = () => {
         <StatCard icon={CheckCircle}  label="Không nợ"          value={withoutDebt} color="bg-emerald-500" />
         <StatCard icon={DollarSign}   label="Tổng doanh thu"    value={fmtRevenue(totalRevenue)} color="bg-violet-500" />
       </div>
+
+        {/* ── Create Store Card ── */}
+      <div className="admin-card rounded-xl p-6">
+        <div className="flex items-center gap-3 mb-6">
+          <div className="w-10 h-10 rounded-xl admin-sidebar-brand flex items-center justify-center">
+            <Plus className="w-5 h-5 text-primary-foreground" />
+          </div>
+          <div>
+            <h3 className="text-base font-semibold text-foreground">Create New Store</h3>
+            <p className="text-xs text-muted-foreground">Calls POST /franchise-stores</p>
+          </div>
+        </div>
+
+        <form onSubmit={handleCreateStore} className="grid grid-cols-1 md:grid-cols-2 gap-5">
+
+          {/* Store Name */}
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium text-foreground" htmlFor="sm-storeName">
+              Store Name <span className="text-destructive">*</span>
+            </label>
+            <div className="relative">
+              <Store className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+              <input id="sm-storeName" name="storeName" value={storeForm.storeName}
+                onChange={handleStoreChange} placeholder="VD: Chi nhánh Quận 1"
+                required className="um-input pl-10" />
+            </div>
+          </div>
+
+          {/* Address */}
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium text-foreground" htmlFor="sm-address">
+              Address <span className="text-destructive">*</span>
+            </label>
+            <div className="relative">
+              <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+              <input id="sm-address" name="address" value={storeForm.address}
+                onChange={handleStoreChange} placeholder="VD: 123 Nguyễn Huệ"
+                required className="um-input pl-10" />
+            </div>
+          </div>
+
+          {/* District */}
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium text-foreground" htmlFor="sm-district">
+              District
+            </label>
+            <div className="relative">
+              <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+              <input id="sm-district" name="district" value={storeForm.district}
+                onChange={handleStoreChange} placeholder="VD: Quận 1"
+                className="um-input pl-10" />
+            </div>
+          </div>
+
+          {/* Ward */}
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium text-foreground" htmlFor="sm-ward">
+              Ward
+            </label>
+            <div className="relative">
+              <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+              <input id="sm-ward" name="ward" value={storeForm.ward}
+                onChange={handleStoreChange} placeholder="VD: Phường Bến Nghé"
+                className="um-input pl-10" />
+            </div>
+          </div>
+
+          {/* Revenue */}
+          <div className="space-y-1.5 md:col-span-2">
+            <label className="text-sm font-medium text-foreground" htmlFor="sm-revenue">
+              Initial Revenue (VND)
+            </label>
+            <div className="relative">
+              <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+              <input id="sm-revenue" name="revenue" type="number" min="0"
+                value={storeForm.revenue} onChange={handleStoreChange}
+                placeholder="0" className="um-input pl-10" />
+            </div>
+          </div>
+
+          {/* Submit */}
+          <div className="md:col-span-2 flex justify-end pt-2">
+            <button type="submit" disabled={creating}
+              className="flex items-center gap-2 px-6 py-2.5 rounded-lg bg-primary text-primary-foreground font-semibold text-sm
+                hover:opacity-90 active:scale-[0.98] transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed">
+              {creating
+                ? <><Loader2 className="w-4 h-4 animate-spin" />Creating…</>
+                : <><Plus className="w-4 h-4" />Create Store</>}
+            </button>
+          </div>
+        </form>
+      </div>
+
 
       {/* ── Table Card ── */}
       <div className="admin-card rounded-xl overflow-hidden">

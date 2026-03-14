@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import {
   UserPlus, User, Mail, Lock, Phone, Shield,
   CheckCircle, Loader2, Eye, EyeOff,
-  RefreshCw, Search, Users, AlertTriangle,
+  RefreshCw, Search, Users, AlertTriangle, Store,
 } from "lucide-react";
 import { toast } from "react-toastify";
 import { createUser, getAllUsers } from "../api/authAPI";
@@ -24,7 +24,9 @@ const ROLES_CREATE = [
   { id: 5, label: "Franchise Staff",        key: "FRANCHISE_STAFF"       },
 ];
 
-const EMPTY_FORM = { fullName: "", email: "", password: "", phone: "", idRole: 1 };
+const FRANCHISE_STAFF_ROLE_ID = 5; // matches id: 5 in ROLES_CREATE
+
+const EMPTY_FORM = { fullName: "", email: "", password: "", phone: "", idRole: 1, storeId: "" };
 
 /* ─── Helpers ─── */
 const RoleBadge = ({ role }) => {
@@ -86,7 +88,15 @@ const UserManagement = () => {
   /* ── form handlers ── */
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: name === "idRole" ? Number(value) : value }));
+    setForm((prev) => {
+      const updated = { ...prev, [name]: name === "idRole" ? Number(value) : value };
+      // When the user switches AWAY from Franchise Staff, clear the storeId
+      // so we don't accidentally send a stale Store ID with a different role.
+      if (name === "idRole" && Number(value) !== FRANCHISE_STAFF_ROLE_ID) {
+        updated.storeId = "";
+      }
+      return updated;
+    });
   };
 
   const handleSubmit = async (e) => {
@@ -230,6 +240,35 @@ const UserManagement = () => {
               ))}
             </div>
           </div>
+
+          {/* ── Store ID (only shown when Franchise Staff is selected) ── */}
+          {/*
+            isFranchiseStaff is true when the selected role id equals 5 (Franchise Staff).
+            The && operator means: "if isFranchiseStaff is true, render what comes after &&".
+            When it's false, React renders nothing — the field disappears completely.
+          */}
+          {form.idRole === FRANCHISE_STAFF_ROLE_ID && (
+            <div className="space-y-1.5 md:col-span-2">
+              <label className="text-sm font-medium text-foreground" htmlFor="um-storeId">
+                Store ID <span className="text-destructive">*</span>
+              </label>
+              <div className="relative">
+                <Store className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                <input
+                  id="um-storeId"
+                  name="storeId"
+                  value={form.storeId}
+                  onChange={handleChange}
+                  placeholder="Enter the Store ID for this staff member"
+                  required
+                  className="um-input pl-10"
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                This field is required for Franchise Staff accounts.
+              </p>
+            </div>
+          )}
 
           {/* Submit */}
           <div className="md:col-span-2 flex justify-end pt-2">

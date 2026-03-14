@@ -78,3 +78,5 @@ export const getAllStore = () => API.get("/franchise-stores");
 
 export const getStorePaymentRecords = (storeId) =>
   API.get(`/franchise-stores/${encodeURIComponent(storeId)}/payment-records`);
+
+export const createNewFranchiseStore = (data) => API.post("/franchise-stores", data);
