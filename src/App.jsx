@@ -18,12 +18,13 @@ import FranchiseDebtPayment from "./pages/FranchiseDebtPayment";
 // Supply Coordinator pages
 import SupplyCoordinatorLayout from "./layouts/SupplyCoordinatorLayout";
 import SupplyCoordinatorOrders from "./pages/SupplyCoordinatorOrders";
+import SupplyDeliveryManagement from "./pages/SupplyDeliveryManagement";
 
 // Central Kitchen pages
 import CentralKitchenLayout from "./layouts/CentralKitchenLayout";
 import CentralKitchenOrders from "./pages/CentralKitchenOrders";
 import CentralKitchenInventory from "./pages/CentralKitchenInventory";
-import CentralKitchenOrderManagement from "./pages/CentralKitchenOrderManagement";
+// import CentralKitchenOrderManagement from "./pages/CentralKitchenOrderManagement";
 
 import VNPayReturn from "./pages/VNPayReturn";
 
@@ -105,6 +106,7 @@ const App = () => (
       >
         <Route index element={<SupplyCoordinatorOrders />} />
         <Route path="orders" element={<SupplyCoordinatorOrders />} />
+        <Route path="delivery" element={<SupplyDeliveryManagement />} />
       </Route>
 
       {/* ── Central Kitchen routes ─────────────────────────────────────── */}
@@ -118,7 +120,7 @@ const App = () => (
       >
         <Route index element={<CentralKitchenOrders />} />
         <Route path="orders" element={<CentralKitchenOrders />} />
-        <Route path="order-management" element={<CentralKitchenOrderManagement />} />
+        {/* <Route path="order-management" element={<CentralKitchenOrderManagement />} /> */}
         <Route path="inventory" element={<CentralKitchenInventory />} />
       </Route>
     </Routes>

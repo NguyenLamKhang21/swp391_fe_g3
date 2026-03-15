@@ -4,7 +4,7 @@ import {
   ClipboardList, CheckCircle, Clock, Loader2, RefreshCw, Search,
   XCircle, AlertCircle, X, Eye, ShieldAlert, Package, ArrowRight,
   MessageSquare, AlertTriangle, ChevronDown, DollarSign, ExternalLink,
-  FileText,
+  FileText, Truck,
 } from "lucide-react";
 import { toast } from "react-toastify";
 import {
@@ -31,6 +31,7 @@ const STATUS_CFG = {
   CONFIRMED:           { color: "text-blue-600",    bg: "bg-blue-50",    border: "border-blue-200",    icon: CheckCircle   },
   COOKING:             { color: "text-orange-600",  bg: "bg-orange-50",  border: "border-orange-200",  icon: AlertCircle   },
   COOKING_DONE:        { color: "text-emerald-600", bg: "bg-emerald-50", border: "border-emerald-200", icon: CheckCircle   },
+  READY_TO_PICK:       { color: "text-blue-600",    bg: "bg-blue-50",    border: "border-blue-200",    icon: Truck         },
   IN_PROCESS:          { color: "text-purple-600",  bg: "bg-purple-50",  border: "border-purple-200",  icon: Loader2       },
   WAITING_FOR_UPDATE:  { color: "text-sky-600",     bg: "bg-sky-50",     border: "border-sky-200",     icon: MessageSquare },
   DELIVERED:           { color: "text-green-600",   bg: "bg-green-50",   border: "border-green-200",   icon: CheckCircle   },
@@ -467,14 +468,15 @@ const SupplyCoordinatorOrders = () => {
               <div className="flex-1 overflow-y-auto p-5 space-y-4">
 
                 {/* ── Section 1: Order info ── */}
-                <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                   {[
-                    { label: "Order ID",  value: selectedOrder.orderId },
-                    { label: "Store",     value: selectedOrder.storeId },
-                    { label: "Payment",   value: selectedOrder.paymentOption },
-                    { label: "Status",    value: selectedOrder.statusOrder },
-                    { label: "Priority",  value: selectedOrder.priorityLevel ?? "—" },
-                    { label: "Ngày đặt",  value: selectedOrder.orderDate ?? "—" },
+                    { label: "Order ID",       value: selectedOrder.orderId },
+                    { label: "Store",          value: selectedOrder.storeId },
+                    { label: "Payment",        value: selectedOrder.paymentOption },
+                    { label: "Order Status",   value: selectedOrder.statusOrder },
+                    { label: "Payment Status", value: selectedOrder.paymentStatus ?? "—" },
+                    { label: "Priority",       value: selectedOrder.priorityLevel ?? "—" },
+                    { label: "Ngày đặt",       value: selectedOrder.orderDate ?? "—" },
                   ].map((f) => (
                     <div key={f.label} className="bg-muted/50 rounded-lg p-2">
                       <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">{f.label}</p>

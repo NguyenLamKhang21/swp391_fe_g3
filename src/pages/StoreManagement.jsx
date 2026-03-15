@@ -39,6 +39,7 @@ const fmtRevenue = (n) => {
 const EMPTY_STORE_FORM = {
   storeName: "",
   address:   "",
+  province:  "",
   district:  "",
   ward:      "",
   revenue:   "",
@@ -155,6 +156,7 @@ const StoreManagement = () => {
       s.storeName?.toLowerCase().includes(q) ||
       s.storeId?.toLowerCase().includes(q)   ||
       s.address?.toLowerCase().includes(q)   ||
+      s.province?.toLowerCase().includes(q)  ||
       s.district?.toLowerCase().includes(q)  ||
       s.ward?.toLowerCase().includes(q)      ||
       s.managerEmail?.toLowerCase().includes(q) ||
@@ -231,6 +233,19 @@ const StoreManagement = () => {
               <input id="sm-address" name="address" value={storeForm.address}
                 onChange={handleStoreChange} placeholder="VD: 123 Nguyễn Huệ"
                 required className="um-input pl-10" />
+            </div>
+          </div>
+
+          {/* Province */}
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium text-foreground" htmlFor="sm-province">
+              Province
+            </label>
+            <div className="relative">
+              <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+              <input id="sm-province" name="province" value={storeForm.province}
+                onChange={handleStoreChange} placeholder="VD: TP. Hồ Chí Minh"
+                className="um-input pl-10" />
             </div>
           </div>
 
@@ -434,9 +449,9 @@ const StoreManagement = () => {
                           <MapPin className="w-3.5 h-3.5 mt-0.5 flex-shrink-0 text-primary/60" />
                           <div className="min-w-0">
                             <p className="truncate text-foreground">{s.address ?? "—"}</p>
-                            {(s.ward || s.district) && (
+                            {(s.ward || s.district || s.province) && (
                               <p className="text-xs text-muted-foreground truncate">
-                                {[s.ward, s.district].filter(Boolean).join(", ")}
+                                {[s.ward, s.district, s.province].filter(Boolean).join(", ")}
                               </p>
                             )}
                           </div>

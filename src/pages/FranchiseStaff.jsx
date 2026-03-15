@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { ShoppingCart, Store, CreditCard, FileText, Utensils, Hash, CheckCircle, Loader2, ClipboardList, ChevronDown, ChevronUp, Receipt, Plus, Trash2 } from "lucide-react";
+import { ShoppingCart, Store, CreditCard, FileText, Utensils, Hash, CheckCircle, Loader2, ClipboardList, ChevronDown, ChevronUp, Receipt, Plus, Trash2, Calendar } from "lucide-react";
 import { toast } from "react-toastify";
 import API from "../api/axios";
 import { getOrdersByStore, getCentralKitchenFood, getOrderDetailByOrderId, createPaymentByOrder } from "../api/authAPI";
@@ -20,6 +20,7 @@ const EMPTY_FORM = {
   paymentOption:  "PAY_AFTER_ORDER",
   paymentMethod:  "CREDIT",
   note:           "",
+  orderDate:      "",
 };
 
 const EMPTY_ITEM = { centralFoodId: "", quantity: 1 };
@@ -129,6 +130,11 @@ const FranchiseStaff = () => {
 
     if (!autoStoreId) { toast.error("No store associated with your account."); return; }
 
+    if (!form.orderDate) {
+      toast.error("Vui lòng chọn ngày giao hàng (Delivery Date).");
+      return;
+    }
+
     const validItems = orderItems.filter((it) => it.centralFoodId && it.quantity >= 1);
     if (validItems.length === 0) {
       toast.error("Vui lòng chọn ít nhất 1 món.");
@@ -150,6 +156,7 @@ const FranchiseStaff = () => {
       paymentOption: form.paymentOption,
       paymentMethod: form.paymentMethod,
       note:          form.note,
+      orderDate:     form.orderDate,
       orderDetail: {
         items: validItems,
       },
@@ -319,6 +326,24 @@ const FranchiseStaff = () => {
             )}
           </div>
 
+          {/* Delivery Date */}
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium text-foreground" htmlFor="fs-delivery-date">
+              Delivery Date <span className="text-destructive">*</span>
+            </label>
+            <div className="relative">
+              <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+              <input
+                type="date"
+                id="fs-delivery-date"
+                name="orderDate"
+                value={form.orderDate}
+                onChange={handleChange}
+                className="um-input pl-10 w-full"
+              />
+            </div>
+          </div>
+
           {/* Note */}
           <div className="space-y-1.5">
             <label className="text-sm font-medium text-foreground" htmlFor="fs-note">
@@ -332,7 +357,7 @@ const FranchiseStaff = () => {
                 value={form.note}
                 onChange={handleChange}
                 placeholder="e.g. Extra spicy"
-                className="um-input pl-10"
+                className="um-input pl-10 w-full"
               />
             </div>
           </div>
@@ -489,7 +514,8 @@ const FranchiseStaff = () => {
                             o.statusOrder === "PENDING"    ? "bg-amber-100 text-amber-700" :
                             o.statusOrder === "CANCELLED"  ? "bg-red-100 text-red-600" :
                             o.statusOrder === "COMPLETED" || o.statusOrder === "DELIVERED" ? "bg-green-100 text-green-700" :
-                            o.statusOrder === "IN_PROGRESS" ? "bg-blue-100 text-blue-700" :
+                            o.statusOrder === "READY_TO_PICK" ? "bg-blue-100 text-blue-700" :
+                            o.statusOrder === "IN_PROGRESS" ? "bg-purple-100 text-purple-700" :
                             "bg-muted text-muted-foreground"
                           }`}>
                             <CheckCircle className="w-3.5 h-3.5" />

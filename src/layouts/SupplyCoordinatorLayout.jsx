@@ -1,4 +1,4 @@
-import { ClipboardList } from "lucide-react";
+import { ClipboardList, Truck } from "lucide-react";
 import MainLayout from "./MainLayout";
 
 const supplyCoordinatorNavItems = [
@@ -6,6 +6,7 @@ const supplyCoordinatorNavItems = [
     section: "Quản lý",
     items: [
       { label: "Order Management", icon: ClipboardList, to: "/supply-coordinator/orders" },
+      { label: "Delivery Management", icon: Truck, to: "/supply-coordinator/delivery"}
     ],
   },
 ];

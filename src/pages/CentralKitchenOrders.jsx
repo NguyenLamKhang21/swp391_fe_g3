@@ -19,6 +19,7 @@ const STATUS_CFG = {
   PENDING:             { color: "text-amber-600",   bg: "bg-amber-50",   border: "border-amber-200",   icon: Clock         },
   IN_PROGRESS:         { color: "text-purple-600",  bg: "bg-purple-50",  border: "border-purple-200",  icon: Clock         },
   COOKING_DONE:        { color: "text-emerald-600", bg: "bg-emerald-50", border: "border-emerald-200", icon: CheckCircle   },
+  READY_TO_PICK:       { color: "text-blue-600",    bg: "bg-blue-50",    border: "border-blue-200",    icon: Truck         },
   WAITING_FOR_UPDATE:  { color: "text-sky-600",     bg: "bg-sky-50",     border: "border-sky-200",     icon: MessageSquare },
   DELIVERED:           { color: "text-green-600",   bg: "bg-green-50",   border: "border-green-200",   icon: CheckCircle   },
   CANCELLED:           { color: "text-gray-500",    bg: "bg-gray-50",    border: "border-gray-200",    icon: XCircle       },
@@ -26,12 +27,13 @@ const STATUS_CFG = {
 const statusStyle = (s) =>
   STATUS_CFG[s] ?? { color: "text-gray-600", bg: "bg-gray-50", border: "border-gray-200", icon: AlertCircle };
 
-const KITCHEN_STATUSES = ["IN_PROGRESS", "COOKING_DONE"];
+const KITCHEN_STATUSES = ["IN_PROGRESS", "COOKING_DONE", "READY_TO_PICK"];
 
 const TABS = [
-  { key: "KITCHEN_ALL",  label: "Tất cả" },
-  { key: "IN_PROGRESS",  label: "Chờ xử lý" },
-  { key: "COOKING_DONE", label: "Hoàn thành" },
+  { key: "KITCHEN_ALL",   label: "Tất cả" },
+  { key: "IN_PROGRESS",   label: "Chờ xử lý" },
+  { key: "COOKING_DONE",  label: "Hoàn thành nấu" },
+  { key: "READY_TO_PICK", label: "Sẵn sàng giao" },
 ];
 
 /* ═══════════════════════════════════════════════════════════════════════
@@ -115,6 +117,21 @@ const CentralKitchenOrders = () => {
     }
   };
 
+  const handleReadyToPick = async () => {
+    if (!selectedOrder) return;
+    try {
+      setActionLoading(true);
+      await updateOrderStatus(selectedOrder.orderId, "READY_TO_PICK");
+      toast.success(`Đơn ${selectedOrder.orderId} đã sẵn sàng giao!`);
+      closeModal();
+      await fetchOrders();
+    } catch (err) {
+      toast.error(err?.response?.data?.message ?? "Không thể cập nhật trạng thái.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   /* ── Filtering ── */
   const filtered = orders.filter((o) => {
     if (activeTab !== "KITCHEN_ALL" && o.statusOrder !== activeTab) return false;
@@ -130,6 +147,7 @@ const CentralKitchenOrders = () => {
     total:       orders.length,
     inProgress:  orders.filter((o) => o.statusOrder === "IN_PROGRESS").length,
     cookingDone: orders.filter((o) => o.statusOrder === "COOKING_DONE").length,
+    readyToPick: orders.filter((o) => o.statusOrder === "READY_TO_PICK").length,
   };
 
   /* ═════════════════════════════════════ RENDER ═════════════════════════════════════ */
@@ -151,11 +169,12 @@ const CentralKitchenOrders = () => {
       </div>
 
       {/* ── Stats cards ── */}
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { label: "Tổng đơn",    value: stats.total,       variant: "stat-card-blue",   icon: Package },
-          { label: "Chờ xử lý",   value: stats.inProgress,  variant: "stat-card-orange", icon: Clock },
-          { label: "Hoàn thành",   value: stats.cookingDone, variant: "stat-card-green",  icon: CheckCircle },
+          { label: "Tổng đơn",       value: stats.total,       variant: "stat-card-blue",   icon: Package },
+          { label: "Chờ xử lý",      value: stats.inProgress,  variant: "stat-card-orange", icon: Clock },
+          { label: "Hoàn thành nấu", value: stats.cookingDone, variant: "stat-card-green",  icon: CheckCircle },
+          { label: "Sẵn sàng giao",  value: stats.readyToPick, variant: "stat-card-purple", icon: Truck },
         ].map((s) => (
           <div key={s.label} className={`stat-card rounded-xl p-4 ${s.variant}`}>
             <div className="flex items-center justify-between">
@@ -418,7 +437,9 @@ const CentralKitchenOrders = () => {
                             {selectedOrder.statusOrder === "IN_PROGRESS"
                               ? "Đơn hàng đã được xác nhận từ Supply Coordinator. Khi nấu xong, bấm \"Hoàn thành nấu\" để cập nhật."
                               : selectedOrder.statusOrder === "COOKING_DONE"
-                              ? "Đã nấu xong và đóng gói. Sẵn sàng giao hàng."
+                              ? "Đã nấu xong. Bấm \"Ready To Delivery\" để xác nhận sẵn sàng giao."
+                              : selectedOrder.statusOrder === "READY_TO_PICK"
+                              ? "Đã đóng gói. Đang chờ đơn vị vận chuyển lấy hàng."
                               : ""}
                           </p>
                         </div>
@@ -441,11 +462,23 @@ const CentralKitchenOrders = () => {
                     </button>
                   )}
 
-                  {/* COOKING_DONE → Sẵn sàng giao */}
+                  {/* COOKING_DONE → Sẵn sàng giao (READY_TO_PICK) */}
                   {selectedOrder.statusOrder === "COOKING_DONE" && (
-                    <div className="flex items-center gap-3 px-4 py-3 rounded-lg bg-emerald-50 border border-emerald-200 w-full">
-                      <Truck className="w-5 h-5 text-emerald-600" />
-                      <p className="text-sm font-medium text-emerald-700">
+                    <button
+                      onClick={handleReadyToPick}
+                      disabled={actionLoading}
+                      className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 active:scale-[0.98] transition-all disabled:opacity-60"
+                    >
+                      {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Truck className="w-4 h-4" />}
+                      Ready To Delivery
+                    </button>
+                  )}
+
+                  {/* Hiện thông báo lúc sẵn sàng giao */}
+                  {selectedOrder.statusOrder === "READY_TO_PICK" && (
+                    <div className="flex items-center gap-3 px-4 py-3 rounded-lg bg-blue-50 border border-blue-200 w-full">
+                      <Truck className="w-5 h-5 text-blue-600" />
+                      <p className="text-sm font-medium text-blue-700">
                         Đơn hàng đã hoàn thành — sẵn sàng giao cho Supply Coordinator.
                       </p>
                     </div>
