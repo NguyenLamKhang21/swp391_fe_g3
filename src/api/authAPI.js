@@ -102,3 +102,4 @@ export const trackOrder = (orderCode) => API.get(`/delivery/track/${orderCode}`)
 
 export const getAllDelivery = () => API.get(`/delivery`);
 
+export const getDeliveryByStore = (storeId) => API.get(`/delivery/shipments/store/${storeId}`);

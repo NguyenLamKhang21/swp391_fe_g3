@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { ShoppingCart, Store, CreditCard, FileText, Utensils, Hash, CheckCircle, Loader2, ClipboardList, ChevronDown, ChevronUp, Receipt, Plus, Trash2, Calendar, ExternalLink, XCircle, Map, MapPin, X } from "lucide-react";
 import { toast } from "react-toastify";
 import API from "../api/axios";
-import { getOrdersByStore, getCentralKitchenFood, getOrderDetailByOrderId, createPaymentByOrder, cancelOrder, refundPayment, getAllDelivery, trackOrder } from "../api/authAPI";
+import { getOrdersByStore, getCentralKitchenFood, getOrderDetailByOrderId, createPaymentByOrder, cancelOrder, refundPayment, getAllDelivery, trackOrder, getDeliveryByStore } from "../api/authAPI";
 
 const PAYMENT_OPTIONS = [
   { value: "PAY_AFTER_ORDER",         label: "Pay After Order"              },
@@ -38,56 +38,16 @@ const FranchiseStaff = () => {
   const [expandedOrderId, setExpandedOrderId] = useState(null);
   const [orderDetails,    setOrderDetails]  = useState({});
   const [detailLoading,   setDetailLoading] = useState(null);
-  const [payingOrderId,   setPayingOrderId] = useState(null);
+  const [payingOrderId,   setPayingOrderId]   = useState(null);
   const [cancelingOrderId, setCancelingOrderId] = useState(null);
+  const [selectedDetailOrder, setSelectedDetailOrder] = useState(null);
 
   // Delivery + Tracking States
-  const [deliveries, setDeliveries] = useState([]);
-  const [trackingData, setTrackingData] = useState(null);
-  const [trackingLoading, setTrackingLoading] = useState(false);
-  const [trackingError, setTrackingError] = useState(null);
+  const [deliveries,          setDeliveries]         = useState([]);
+  const [trackingData,        setTrackingData]        = useState(null);
+  const [trackingLoading,     setTrackingLoading]     = useState(false);
+  const [trackingError,       setTrackingError]       = useState(null);
   const [isTrackingModalOpen, setIsTrackingModalOpen] = useState(false);
-
-  useEffect(() => {
-    const fetchDeliveriesList = async () => {
-      try {
-        const response = await getAllDelivery();
-        const data = response?.data?.data || response?.data || [];
-        setDeliveries(Array.isArray(data) ? data : []);
-      } catch (err) {
-        console.error("Error fetching deliveries:", err);
-      }
-    };
-    fetchDeliveriesList();
-  }, []);
-
-  const handleTrackDelivery = async (delivery) => {
-    if (!delivery || !delivery.ghnOrderCode) return;
-    setTrackingLoading(true);
-    setTrackingError(null);
-    setTrackingData(null);
-    setIsTrackingModalOpen(true);
-    try {
-      const ghnCode = delivery.ghnOrderCode;
-      const response = await trackOrder(ghnCode);
-      const resData = response?.data;
-      if (resData && resData.code === 200) {
-        setTrackingData(resData.data);
-      } else {
-        setTrackingError("Không thể tải thông tin tracking hoặc api lỗi.");
-      }
-    } catch (err) {
-      console.error("Error tracking order:", err);
-      setTrackingError("Lỗi hệ thống khi theo dõi đơn hàng.");
-    } finally {
-      setTrackingLoading(false);
-    }
-  };
-
-  const closeTrackingModal = () => {
-    setIsTrackingModalOpen(false);
-    setTrackingData(null);
-  };
 
   // Read store info from localStorage (set at login for FRANCHISE_STAFF)
   const storeInfo = (() => {
@@ -115,6 +75,48 @@ const FranchiseStaff = () => {
     }
   }, [autoStoreId]);
 
+  // Fetch deliveries scoped to this store (uses store-specific endpoint — no 500)
+  useEffect(() => {
+    if (!autoStoreId) return;
+    const fetchStoreDeliveries = async () => {
+      try {
+        const res = await getDeliveryByStore(autoStoreId);
+        const data = res?.data?.data || res?.data || [];
+        setDeliveries(Array.isArray(data) ? data : []);
+      } catch (err) {
+        console.error("Error fetching store deliveries:", err);
+      }
+    };
+    fetchStoreDeliveries();
+  }, [autoStoreId]);
+
+  const handleTrackDelivery = async (delivery) => {
+    if (!delivery?.ghnOrderCode) return;
+    setTrackingLoading(true);
+    setTrackingError(null);
+    setTrackingData(null);
+    setIsTrackingModalOpen(true);
+    try {
+      const res = await trackOrder(delivery.ghnOrderCode);
+      const resData = res?.data;
+      if (resData?.code === 200) {
+        setTrackingData(resData.data);
+      } else {
+        setTrackingError("Không thể tải thông tin tracking.");
+      }
+    } catch (err) {
+      console.error("Error tracking order:", err);
+      setTrackingError("Lỗi hệ thống khi theo dõi đơn hàng.");
+    } finally {
+      setTrackingLoading(false);
+    }
+  };
+
+  const closeTrackingModal = () => {
+    setIsTrackingModalOpen(false);
+    setTrackingData(null);
+  };
+
   //fetch food to show in foodItems dropdown menu
   useEffect(() => {
     const fetchFoods = async ()=> {
@@ -128,27 +130,9 @@ const FranchiseStaff = () => {
     fetchFoods();
   }, [])
 
-  /* ── order detail toggle ── */
-  const toggleDetail = async (orderId) => {
-    // collapse if already open
-    if (expandedOrderId === orderId) {
-      setExpandedOrderId(null);
-      return;
-    }
-    setExpandedOrderId(orderId);
-    // return cached detail if already fetched
-    if (orderDetails[orderId]) return;
-    try {
-      setDetailLoading(orderId);
-      const res = await getOrderDetailByOrderId(orderId);
-      setOrderDetails((prev) => ({ ...prev, [orderId]: res.data }));
-    } catch {
-      toast.error(`Cannot load detail for order ${orderId}`);
-      setExpandedOrderId(null);
-    } finally {
-      setDetailLoading(null);
-    }
-  };
+  /* ── order detail modal ── */
+  const openDetailModal  = (order) => setSelectedDetailOrder(order);
+  const closeDetailModal = () => setSelectedDetailOrder(null);
 
   /* ── handlers ── */
   const VNPAY_ONLY_OPTIONS = ["PAY_AFTER_ORDER", "PAY_AT_THE_END_OF_MONTH"];
@@ -447,6 +431,7 @@ const FranchiseStaff = () => {
                 id="fs-delivery-date"
                 name="orderDate"
                 value={form.orderDate}
+                min={new Date().toISOString().split("T")[0]}
                 onChange={handleChange}
                 className="um-input pl-10 w-full"
               />
@@ -596,9 +581,9 @@ const FranchiseStaff = () => {
               </thead>
               <tbody className="divide-y divide-border">
                 {createdOrders.map((o) => {
-                  const isExpanded = expandedOrderId === o.orderId;
-                  const isLoadingDetail = detailLoading === o.orderId;
-                  const detail = orderDetails[o.orderId];
+                  const isExpanded = false; // sub-row removed — modal used instead
+                  const isLoadingDetail = false;
+                  const detail = null;
 
                   return (
                     <React.Fragment key={o.orderId}>
@@ -652,17 +637,11 @@ const FranchiseStaff = () => {
                         <td className="px-6 py-4 text-center">
                           <div className="flex items-center justify-center gap-2">
                             <button
-                              onClick={() => toggleDetail(o.orderId)}
-                              disabled={isLoadingDetail}
-                              className="inline-flex items-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-lg border border-primary/30 text-primary bg-primary/5 hover:bg-primary/15 transition-all duration-150 disabled:opacity-50"
+                              onClick={() => openDetailModal(o)}
+                              className="inline-flex items-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-lg border border-primary/30 text-primary bg-primary/5 hover:bg-primary/15 transition-all duration-150"
                             >
-                              {isLoadingDetail
-                                ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                                : isExpanded
-                                  ? <ChevronUp className="w-3.5 h-3.5" />
-                                  : <ChevronDown className="w-3.5 h-3.5" />
-                              }
-                              {isExpanded ? "Hide" : "View"}
+                              <Receipt className="w-3.5 h-3.5" />
+                              Detail
                             </button>
                             {o.paymentOption === "PAY_AFTER_ORDER" &&
                              o.statusOrder !== "CANCELLED" && o.statusOrder !== "REJECTED" &&
@@ -811,108 +790,255 @@ const FranchiseStaff = () => {
         </div>
       )}
 
-      {/* TRACKING MODAL */}
-      {isTrackingModalOpen && createPortal(
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-8">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={closeTrackingModal} />
+      {/* ── Order Detail Modal ── */}
+      {selectedDetailOrder && createPortal(
+        <div className="fixed inset-0 z-[9998] flex items-center justify-center p-6">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={closeDetailModal} />
+          <div className="relative bg-background border border-border rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col animate-fade-in">
 
-          <div className="relative bg-background border border-border rounded-2xl shadow-2xl w-full max-w-2xl max-h-[80vh] flex flex-col animate-fade-in">
-            {/* Modal header */}
-            <div className="flex-shrink-0 px-5 py-3 border-b border-border flex items-center justify-between rounded-t-2xl">
-              <div>
-                <h3 className="text-base font-bold text-foreground flex items-center gap-2">
-                  <Map className="w-5 h-5 text-emerald-600" />
-                  Theo Dõi Gia Vận GHN
-                </h3>
+            {/* Modal Header */}
+            <div className="flex-shrink-0 px-5 py-4 border-b border-border flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Receipt className="w-5 h-5 text-primary" />
+                <h3 className="text-base font-bold text-foreground">Order Detail</h3>
+                <span className="text-xs text-muted-foreground font-mono bg-muted px-2 py-0.5 rounded-md">#{selectedDetailOrder.orderId}</span>
               </div>
-              <button
-                onClick={closeTrackingModal}
-                className="p-2 rounded-lg bg-muted hover:bg-destructive hover:text-destructive-foreground transition-colors"
-                title="Đóng"
-              >
+              <button onClick={closeDetailModal} className="p-2 rounded-lg bg-muted hover:bg-destructive hover:text-destructive-foreground transition-colors">
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-5 space-y-4">
+            {/* Modal Body */}
+            <div className="flex-1 overflow-y-auto p-5 space-y-5">
+
+              {/* Info Grid */}
+              <div className="grid grid-cols-2 gap-3">
+                {[
+                  { label: "Store", value: selectedDetailOrder.storeId },
+                  { label: "Order Date", value: selectedDetailOrder.orderDate ?? "—" },
+                  { label: "Priority", value: selectedDetailOrder.priorityLevel ?? "—" },
+                  { label: "Payment Method", value: selectedDetailOrder.paymentMethod ?? "—" },
+                  { label: "Payment Option", value: selectedDetailOrder.paymentOption ?? "—" },
+                  { label: "Cancel Reason", value: selectedDetailOrder.cancelReason ?? "—" },
+                ].map(({ label, value }) => (
+                  <div key={label} className="bg-muted/40 rounded-xl p-3 border border-border">
+                    <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">{label}</p>
+                    <p className="text-sm font-medium text-foreground break-all">{value}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Status Row */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-xl p-3 border border-border bg-card">
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Order Status</p>
+                  <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full ${
+                    selectedDetailOrder.statusOrder === "PENDING"    ? "bg-amber-100 text-amber-700" :
+                    selectedDetailOrder.statusOrder === "CANCELLED"  ? "bg-red-100 text-red-600" :
+                    selectedDetailOrder.statusOrder === "COMPLETED" || selectedDetailOrder.statusOrder === "DELIVERED" ? "bg-green-100 text-green-700" :
+                    selectedDetailOrder.statusOrder === "READY_TO_PICK" ? "bg-blue-100 text-blue-700" :
+                    selectedDetailOrder.statusOrder === "COOKING_DONE" || selectedDetailOrder.statusOrder === "IN_PROGRESS" ? "bg-purple-100 text-purple-700" :
+                    "bg-muted text-muted-foreground"
+                  }`}>
+                    <CheckCircle className="w-3.5 h-3.5" />
+                    {selectedDetailOrder.statusOrder ?? "—"}
+                  </span>
+                </div>
+                <div className="rounded-xl p-3 border border-border bg-card">
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Payment Status</p>
+                  <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full ${
+                    selectedDetailOrder.paymentStatus === "SUCCESS" || selectedDetailOrder.paymentStatus === "PAID"
+                      ? "bg-emerald-100 text-emerald-700" :
+                    selectedDetailOrder.paymentStatus === "FAILED"
+                      ? "bg-red-100 text-red-600" :
+                    selectedDetailOrder.paymentStatus === "PENDING"
+                      ? "bg-amber-100 text-amber-700" :
+                    "bg-muted text-muted-foreground"
+                  }`}>
+                    <CreditCard className="w-3.5 h-3.5" />
+                    {selectedDetailOrder.paymentStatus ?? "—"}
+                  </span>
+                </div>
+              </div>
+
+              {/* Note */}
+              {selectedDetailOrder.note && (
+                <div className="flex items-start gap-2 px-4 py-3 rounded-xl bg-amber-50 border border-amber-200 text-sm text-amber-800">
+                  <FileText className="w-4 h-4 mt-0.5 flex-shrink-0 text-amber-500" />
+                  <span><span className="font-semibold">Note: </span>{selectedDetailOrder.note}</span>
+                </div>
+              )}
+
+              {/* Items Table */}
+              {selectedDetailOrder.orderDetail && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                      Items — <span className="font-mono text-foreground">{selectedDetailOrder.orderDetail.orderDetailId}</span>
+                    </p>
+                    {/* GHN Track button */}
+                    {(() => {
+                      const delivery = deliveries.find(d => d.orderDetailId === selectedDetailOrder.orderDetail?.orderDetailId);
+                      if (delivery?.ghnOrderCode) {
+                        return (
+                          <button
+                            onClick={() => { closeDetailModal(); handleTrackDelivery(delivery); }}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-50 text-emerald-600 border border-emerald-200 hover:bg-emerald-100 transition-colors"
+                          >
+                            <Map className="w-3.5 h-3.5" />
+                            Theo dõi vận đơn GHN
+                          </button>
+                        );
+                      }
+                      return null;
+                    })()}
+                  </div>
+                  <div className="rounded-xl overflow-hidden border border-border">
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr className="bg-muted/60">
+                          <th className="px-4 py-2.5 text-left font-semibold text-muted-foreground uppercase tracking-wide">Food Item</th>
+                          <th className="px-4 py-2.5 text-center font-semibold text-muted-foreground uppercase tracking-wide">Qty</th>
+                          <th className="px-4 py-2.5 text-right font-semibold text-muted-foreground uppercase tracking-wide">Unit Price</th>
+                          <th className="px-4 py-2.5 text-right font-semibold text-muted-foreground uppercase tracking-wide">Subtotal</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border bg-background">
+                        {selectedDetailOrder.orderDetail.items?.map((item, idx) => (
+                          <tr key={idx}>
+                            <td className="px-4 py-2.5 font-medium text-foreground">{item.foodName}</td>
+                            <td className="px-4 py-2.5 text-center text-muted-foreground">{item.quantity}</td>
+                            <td className="px-4 py-2.5 text-right text-muted-foreground">{item.unitPrice?.toLocaleString()} đ</td>
+                            <td className="px-4 py-2.5 text-right font-semibold text-foreground">{item.totalAmount?.toLocaleString()} đ</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                      <tfoot>
+                        <tr className="bg-primary/5 border-t-2 border-primary/20">
+                          <td colSpan={3} className="px-4 py-3 text-right text-xs font-bold text-foreground uppercase tracking-wide">Total</td>
+                          <td className="px-4 py-3 text-right text-sm font-bold text-primary">
+                            {selectedDetailOrder.orderDetail.amount?.toLocaleString()} đ
+                          </td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* ── GHN Tracking Modal ── */}
+      {isTrackingModalOpen && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-6">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={closeTrackingModal} />
+          <div className="relative bg-background border border-border rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col animate-fade-in">
+
+            {/* Header */}
+            <div className="flex-shrink-0 px-5 py-4 border-b border-border flex items-center justify-between">
+              <h3 className="text-base font-bold text-foreground flex items-center gap-2">
+                <Map className="w-5 h-5 text-emerald-600" />
+                Theo Dõi Giao Hàng GHN
+              </h3>
+              <button onClick={closeTrackingModal} className="p-2 rounded-lg bg-muted hover:bg-destructive hover:text-destructive-foreground transition-colors">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="flex-1 overflow-y-auto p-5 space-y-5">
               {trackingLoading ? (
-                <div className="h-40 flex items-center justify-center text-primary font-medium">
-                  <Loader2 className="w-6 h-6 animate-spin mr-2" />
-                  Đang tải thông tin theo dõi...
+                <div className="h-40 flex items-center justify-center gap-2 text-primary font-medium">
+                  <Loader2 className="w-5 h-5 animate-spin" /> Đang tải thông tin...
                 </div>
               ) : trackingError ? (
-                <div className="h-40 flex items-center justify-center text-destructive font-medium">
-                  {trackingError}
-                </div>
+                <div className="h-40 flex items-center justify-center text-destructive font-medium">{trackingError}</div>
               ) : trackingData ? (
-                <div className="space-y-6">
-                  {/* Status & Info Header */}
+                <div className="space-y-5">
+
+                  {/* Status + Code */}
                   <div className="grid grid-cols-2 gap-4">
-                    <div className="bg-emerald-50/50 rounded-xl p-4 border border-emerald-100">
-                      <p className="text-xs font-semibold text-emerald-600 uppercase tracking-wider mb-1">Trạng thái hiện tại</p>
-                      <p className="text-lg font-bold text-emerald-800 capitalize">
-                        {trackingData.status || "N/A"}
-                      </p>
+                    <div className="bg-emerald-50 rounded-xl p-4 border border-emerald-200">
+                      <p className="text-xs font-semibold text-emerald-600 uppercase tracking-wider mb-1">Trạng thái</p>
+                      <p className="text-xl font-bold text-emerald-800 capitalize">{trackingData.status || "N/A"}</p>
                     </div>
                     <div className="bg-muted/50 rounded-xl p-4 border border-border">
-                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Mã GHN</p>
-                      <p className="text-lg font-bold text-foreground font-mono">
-                        {trackingData.order_code || "N/A"}
-                      </p>
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Mã vận đơn GHN</p>
+                      <p className="text-xl font-bold text-foreground font-mono">{trackingData.order_code || "N/A"}</p>
                     </div>
                   </div>
 
-                  {/* Locations Detail */}
+                  {/* Estimated delivery */}
+                  {trackingData.leadtime_order && (
+                    <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-blue-50 border border-blue-200 text-sm text-blue-800">
+                      <Calendar className="w-4 h-4 text-blue-500 flex-shrink-0" />
+                      <span>
+                        <span className="font-semibold">Dự kiến giao: </span>
+                        {new Date(trackingData.leadtime_order.from_estimate_date).toLocaleDateString("vi-VN")}
+                        {" — "}
+                        {new Date(trackingData.leadtime_order.to_estimate_date).toLocaleDateString("vi-VN")}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Addresses */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-3 p-4 rounded-xl border border-border bg-card">
-                      <h4 className="text-sm font-bold text-foreground flex items-center gap-2">
-                        <MapPin className="w-4 h-4 text-blue-500" /> Điểm Gửi Hàng
+                    <div className="p-4 rounded-xl border border-border bg-card space-y-1.5">
+                      <h4 className="text-sm font-bold text-foreground flex items-center gap-1.5">
+                        <MapPin className="w-4 h-4 text-blue-500" /> Điểm Gửi
                       </h4>
-                      <div className="space-y-1">
-                        <p className="text-xs text-muted-foreground"><span className="font-semibold text-foreground">Người gửi:</span> {trackingData.from_name}</p>
-                        <p className="text-xs text-muted-foreground"><span className="font-semibold text-foreground">SĐT:</span> {trackingData.from_phone}</p>
-                        <p className="text-xs text-muted-foreground"><span className="font-semibold text-foreground">Địa chỉ:</span> {trackingData.from_address}</p>
-                      </div>
+                      <p className="text-xs text-muted-foreground"><span className="font-semibold text-foreground">Tên:</span> {trackingData.from_name}</p>
+                      <p className="text-xs text-muted-foreground"><span className="font-semibold text-foreground">SĐT:</span> {trackingData.from_phone}</p>
+                      <p className="text-xs text-muted-foreground"><span className="font-semibold text-foreground">Địa chỉ:</span> {trackingData.from_address}</p>
                     </div>
-                    <div className="space-y-3 p-4 rounded-xl border border-border bg-card">
-                      <h4 className="text-sm font-bold text-foreground flex items-center gap-2">
-                        <MapPin className="w-4 h-4 text-red-500" /> Điểm Nhận Hàng
+                    <div className="p-4 rounded-xl border border-border bg-card space-y-1.5">
+                      <h4 className="text-sm font-bold text-foreground flex items-center gap-1.5">
+                        <MapPin className="w-4 h-4 text-red-500" /> Điểm Nhận
                       </h4>
-                      <div className="space-y-1">
-                        <p className="text-xs text-muted-foreground"><span className="font-semibold text-foreground">Người nhận:</span> {trackingData.to_name}</p>
-                        <p className="text-xs text-muted-foreground"><span className="font-semibold text-foreground">SĐT:</span> {trackingData.to_phone}</p>
-                        <p className="text-xs text-muted-foreground"><span className="font-semibold text-foreground">Địa chỉ:</span> {trackingData.to_address}</p>
-                      </div>
+                      <p className="text-xs text-muted-foreground"><span className="font-semibold text-foreground">Tên:</span> {trackingData.to_name}</p>
+                      <p className="text-xs text-muted-foreground"><span className="font-semibold text-foreground">SĐT:</span> {trackingData.to_phone}</p>
+                      <p className="text-xs text-muted-foreground"><span className="font-semibold text-foreground">Địa chỉ:</span> {trackingData.to_address}</p>
                     </div>
                   </div>
 
-                  {/* Parcel Details */}
+                  {/* Parcel Info */}
                   <div className="p-4 rounded-xl border border-border bg-card space-y-3">
                     <h4 className="text-sm font-bold text-foreground">Chi Tiết Kiện Hàng</h4>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                      <div>
-                        <p className="text-xs text-muted-foreground">Khối lượng</p>
-                        <p className="text-sm font-medium">{trackingData.weight} g</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground">Kích thước</p>
-                        <p className="text-sm font-medium">{trackingData.length}x{trackingData.width}x{trackingData.height} cm</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground">Tiền thu hộ (COD)</p>
-                        <p className="text-sm font-bold text-emerald-600">{trackingData.cod_amount?.toLocaleString() || "0"} đ</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground">Dịch vụ</p>
-                        <p className="text-sm font-medium">{trackingData.service_type_id === 2 ? 'Chuẩn' : 'Nhanh'}</p>
-                      </div>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                      <div><p className="text-xs text-muted-foreground">Khối lượng</p><p className="font-medium">{trackingData.weight} g</p></div>
+                      <div><p className="text-xs text-muted-foreground">Kích thước</p><p className="font-medium">{trackingData.length}×{trackingData.width}×{trackingData.height} cm</p></div>
+                      <div><p className="text-xs text-muted-foreground">Tiền COD</p><p className="font-bold text-emerald-600">{trackingData.cod_amount?.toLocaleString() || "0"} đ</p></div>
+                      <div><p className="text-xs text-muted-foreground">Dịch vụ</p><p className="font-medium">{trackingData.service_type_id === 2 ? "Chuẩn" : "Nhanh"}</p></div>
                     </div>
                     {trackingData.content && (
-                      <div className="mt-3 text-xs bg-muted/50 p-3 rounded-lg border border-border">
+                      <div className="text-xs bg-muted/50 p-3 rounded-lg border border-border">
                         <span className="font-semibold">Nội dung:</span> {trackingData.content}
                       </div>
                     )}
                   </div>
+
+                  {/* Tracking Log */}
+                  {trackingData.log?.length > 0 && (
+                    <div className="p-4 rounded-xl border border-border bg-card space-y-3">
+                      <h4 className="text-sm font-bold text-foreground">Lịch Sử Vận Chuyển</h4>
+                      <div className="space-y-2">
+                        {[...trackingData.log].reverse().map((entry, idx) => (
+                          <div key={idx} className="flex items-start gap-3 text-xs">
+                            <div className="w-2 h-2 rounded-full bg-emerald-500 mt-1.5 flex-shrink-0" />
+                            <div>
+                              <p className="font-semibold text-foreground capitalize">{entry.status}</p>
+                              <p className="text-muted-foreground">{new Date(entry.updated_date).toLocaleString("vi-VN")}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                 </div>
               ) : null}
             </div>
