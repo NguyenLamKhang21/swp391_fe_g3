@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import {
   ChefHat, CheckCircle, Clock, Loader2, RefreshCw, Search,
   Package, Eye, X, Truck, AlertCircle, XCircle, MessageSquare,
+  Bell,
 } from "lucide-react";
 import { toast } from "react-toastify";
 import {
@@ -34,6 +35,7 @@ const TABS = [
   { key: "IN_PROGRESS",   label: "Chờ xử lý" },
   { key: "COOKING_DONE",  label: "Hoàn thành nấu" },
   { key: "READY_TO_PICK", label: "Sẵn sàng giao" },
+  { key: "CANCELLED",     label: "Đã hủy" },
 ];
 
 /* ═══════════════════════════════════════════════════════════════════════
@@ -50,6 +52,7 @@ const CentralKitchenOrders = () => {
   const [orderDetail, setOrderDetail]     = useState(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
+  const [cancelledOrders, setCancelledOrders] = useState([]);
 
   /* ── Fetch orders ── */
   const fetchOrders = useCallback(async () => {
@@ -59,6 +62,7 @@ const CentralKitchenOrders = () => {
       const data = res.data?.data ?? res.data ?? [];
       const all = Array.isArray(data) ? data : [];
       setOrders(all.filter((o) => KITCHEN_STATUSES.includes(o.statusOrder)));
+      setCancelledOrders(all.filter((o) => o.statusOrder === "CANCELLED"));
     } catch {
       toast.error("Không thể tải danh sách đơn hàng.");
     } finally {
@@ -133,8 +137,9 @@ const CentralKitchenOrders = () => {
   };
 
   /* ── Filtering ── */
-  const filtered = orders.filter((o) => {
-    if (activeTab !== "KITCHEN_ALL" && o.statusOrder !== activeTab) return false;
+  const sourceOrders = activeTab === "CANCELLED" ? cancelledOrders : orders;
+  const filtered = sourceOrders.filter((o) => {
+    if (activeTab !== "KITCHEN_ALL" && activeTab !== "CANCELLED" && o.statusOrder !== activeTab) return false;
     const term = searchTerm.toLowerCase();
     return (
       (o.orderId?.toLowerCase() ?? "").includes(term) ||
@@ -167,6 +172,27 @@ const CentralKitchenOrders = () => {
           <span className="text-xs font-semibold text-primary">Central Kitchen Staff</span>
         </div>
       </div>
+
+      {/* ── Cancelled order notification ── */}
+      {cancelledOrders.length > 0 && (
+        <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-red-50 border border-red-200 animate-fade-in">
+          <Bell className="w-5 h-5 text-red-600 flex-shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-red-700">
+              {cancelledOrders.length} đơn hàng đã bị hủy
+            </p>
+            <p className="text-xs text-red-600 mt-0.5">
+              Có đơn hàng bị hủy bởi Supply Coordinator / Store. Xem tab "Đã hủy" để biết chi tiết.
+            </p>
+          </div>
+          <button
+            onClick={() => setActiveTab("CANCELLED")}
+            className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-red-600 text-white hover:bg-red-700 transition-colors flex-shrink-0"
+          >
+            Xem
+          </button>
+        </div>
+      )}
 
       {/* ── Stats cards ── */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

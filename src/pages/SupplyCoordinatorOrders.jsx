@@ -20,6 +20,7 @@ import {
   getCentralKitchenFood,
   createDebtPayment,
   getStorePaymentRecords,
+  refundPayment,
 } from "../api/authAPI";
 
 /* ═══════════════════════════════════════════════════════════════════════
@@ -181,17 +182,30 @@ const SupplyCoordinatorOrders = () => {
 
   const handleRejectOrder = async () => {
     if (!selectedOrder || !rejectReason.trim()) {
-      toast.warn("Vui lòng nhập lý do từ chối.");
+      toast.warn("Vui lòng nhập lý do hủy đơn.");
       return;
     }
     try {
       setActionLoading(true);
-      await cancelOrder(selectedOrder.orderId);
-      toast.success(`Đơn ${selectedOrder.orderId} đã bị từ chối.`);
+      await cancelOrder(selectedOrder.orderId, rejectReason.trim());
+      toast.success(`Đơn ${selectedOrder.orderId} đã được hủy.`);
+
+      if (
+        selectedOrder.paymentOption === "PAY_AFTER_ORDER" &&
+        (selectedOrder.paymentStatus === "SUCCESS" || selectedOrder.paymentStatus === "PAID")
+      ) {
+        try {
+          await refundPayment(selectedOrder.orderId);
+          toast.success(`Đã gửi yêu cầu hoàn tiền cho đơn ${selectedOrder.orderId}.`);
+        } catch (refundErr) {
+          toast.error(refundErr?.response?.data?.message ?? "Hoàn tiền thất bại — vui lòng xử lý thủ công.");
+        }
+      }
+
       closeModal();
       await fetchOrders();
     } catch (err) {
-      toast.error(err?.response?.data?.message ?? "Không thể từ chối đơn hàng.");
+      toast.error(err?.response?.data?.message ?? "Không thể hủy đơn hàng.");
     } finally {
       setActionLoading(false);
     }
@@ -606,7 +620,15 @@ const SupplyCoordinatorOrders = () => {
                     {/* Reject form */}
                     {showRejectForm ? (
                       <div className="space-y-2 bg-red-50 border border-red-200 rounded-lg p-3">
-                        <p className="text-xs font-semibold text-red-700">Từ chối đơn hàng</p>
+                        <p className="text-xs font-semibold text-red-700">Từ chối / Hủy đơn hàng</p>
+                        {selectedOrder.paymentOption === "PAY_AFTER_ORDER" &&
+                         (selectedOrder.paymentStatus === "SUCCESS" || selectedOrder.paymentStatus === "PAID") && (
+                          <div className="rounded-md p-2 bg-amber-50 border border-amber-200">
+                            <p className="text-[11px] text-amber-700 font-medium">
+                              Đơn đã thanh toán qua VNPay — hệ thống sẽ tự động hoàn tiền sau khi hủy.
+                            </p>
+                          </div>
+                        )}
                         <textarea
                           placeholder="Nhập lý do từ chối..."
                           value={rejectReason}
@@ -747,8 +769,97 @@ const SupplyCoordinatorOrders = () => {
                   </div>
                 )}
 
-                {/* Status info for non-actionable orders */}
-                {!["PENDING", "WAITING_FOR_UPDATE"].includes(selectedOrder.statusOrder) && (
+                {/* APPROVED/CONFIRMED — CK chưa chế biến → SC có thể hủy theo yêu cầu Store */}
+                {["APPROVED", "CONFIRMED"].includes(selectedOrder.statusOrder) && (
+                  <div className="border border-border rounded-lg p-4 space-y-3">
+                    <h4 className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                      <ArrowRight className="w-3.5 h-3.5 text-primary" />
+                      Hủy đơn (theo yêu cầu Store qua điện thoại)
+                    </h4>
+
+                    <div className="rounded-lg p-3 bg-blue-50 border border-blue-200 space-y-1">
+                      <p className="text-xs text-blue-700 font-medium">
+                        Central Kitchen chưa bắt đầu chế biến — có thể hủy đơn.
+                      </p>
+                      <p className="text-xs text-blue-600">
+                        {selectedOrder.paymentOption === "PAY_AFTER_ORDER" &&
+                         (selectedOrder.paymentStatus === "SUCCESS" || selectedOrder.paymentStatus === "PAID")
+                          ? "PAY_AFTER_ORDER (đã thanh toán) — sẽ hoàn tiền qua VNPay sau khi hủy."
+                          : selectedOrder.paymentOption === "PAY_AT_THE_END_OF_MONTH"
+                          ? "PAY_AT_THE_END_OF_MONTH — đơn sẽ không tính vào nợ cuối tháng."
+                          : selectedOrder.paymentOption === "PAY_AFTER_DELIVERY"
+                          ? "PAY_AFTER_DELIVERY — chưa thanh toán, ghi nhận hủy hợp lệ."
+                          : `Hình thức: ${selectedOrder.paymentOption ?? "—"}`
+                        }
+                      </p>
+                    </div>
+
+                    {showRejectForm ? (
+                      <div className="space-y-2 bg-red-50 border border-red-200 rounded-lg p-3">
+                        <p className="text-xs font-semibold text-red-700">Lý do hủy đơn</p>
+                        {selectedOrder.paymentOption === "PAY_AFTER_ORDER" &&
+                         (selectedOrder.paymentStatus === "SUCCESS" || selectedOrder.paymentStatus === "PAID") && (
+                          <div className="rounded-md p-2 bg-amber-50 border border-amber-200">
+                            <p className="text-[11px] text-amber-700 font-medium">
+                              Đơn đã thanh toán — hệ thống sẽ tự động hoàn tiền sau khi hủy.
+                            </p>
+                          </div>
+                        )}
+                        <textarea
+                          placeholder="Nhập lý do hủy..."
+                          value={rejectReason}
+                          onChange={(e) => setRejectReason(e.target.value)}
+                          rows={2}
+                          className="um-input resize-none text-sm"
+                        />
+                        <div className="flex gap-2">
+                          <button
+                            onClick={handleRejectOrder}
+                            disabled={actionLoading || !rejectReason.trim()}
+                            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-semibold hover:bg-red-700 transition-colors disabled:opacity-60"
+                          >
+                            {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />}
+                            Xác nhận hủy đơn
+                          </button>
+                          <button
+                            onClick={() => { setShowRejectForm(false); setRejectReason(""); }}
+                            className="px-4 py-2 rounded-lg border border-border text-sm font-medium hover:bg-muted transition-colors"
+                          >
+                            Hủy bỏ
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setShowRejectForm(true)}
+                        className="flex items-center gap-2 px-4 py-2 rounded-lg border border-red-300 bg-red-50 text-red-700 text-sm font-semibold hover:bg-red-100 transition-colors"
+                      >
+                        <XCircle className="w-4 h-4" />
+                        Hủy đơn hàng
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {/* IN_PROGRESS / COOKING_DONE / READY_TO_PICK — CK đã chế biến → không thể hủy */}
+                {["IN_PROGRESS", "COOKING_DONE", "READY_TO_PICK"].includes(selectedOrder.statusOrder) && (
+                  <div className="rounded-lg p-4 bg-red-50 border border-red-200">
+                    <div className="flex items-center gap-2">
+                      <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0" />
+                      <div>
+                        <p className="text-sm text-red-700 font-semibold">
+                          Không thể hủy — Central Kitchen đã bắt đầu chế biến
+                        </p>
+                        <p className="text-xs text-red-600 mt-0.5">
+                          Trạng thái: {selectedOrder.statusOrder}. Đơn chỉ có thể hủy trước khi Central Kitchen bắt đầu nấu.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* DELIVERED / CANCELLED / REJECTED — hoàn tất */}
+                {["DELIVERED", "CANCELLED", "REJECTED"].includes(selectedOrder.statusOrder) && (
                   <div className="bg-muted/50 rounded-lg p-3 text-center">
                     <p className="text-xs text-muted-foreground">
                       Trạng thái <strong>{selectedOrder.statusOrder}</strong> — không cần thao tác thêm.

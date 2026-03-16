@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
-import { ShoppingCart, Store, CreditCard, FileText, Utensils, Hash, CheckCircle, Loader2, ClipboardList, ChevronDown, ChevronUp, Receipt, Plus, Trash2, Calendar, ExternalLink, Map, MapPin, X } from "lucide-react";
+import { ShoppingCart, Store, CreditCard, FileText, Utensils, Hash, CheckCircle, Loader2, ClipboardList, ChevronDown, ChevronUp, Receipt, Plus, Trash2, Calendar, ExternalLink, XCircle, Map, MapPin, X } from "lucide-react";
 import { toast } from "react-toastify";
 import API from "../api/axios";
-import { getOrdersByStore, getCentralKitchenFood, getOrderDetailByOrderId, createPaymentByOrder, getDeliveryByStore, trackOrder } from "../api/authAPI";
+import { getOrdersByStore, getCentralKitchenFood, getOrderDetailByOrderId, createPaymentByOrder, cancelOrder, refundPayment, getAllDelivery, trackOrder, getDeliveryByStore } from "../api/authAPI";
 
 const PAYMENT_OPTIONS = [
   { value: "PAY_AFTER_ORDER",         label: "Pay After Order"              },
@@ -38,7 +38,9 @@ const FranchiseStaff = () => {
   const [expandedOrderId, setExpandedOrderId] = useState(null);
   const [orderDetails,    setOrderDetails]  = useState({});
   const [detailLoading,   setDetailLoading] = useState(null);
-  const [payingOrderId,   setPayingOrderId] = useState(null);
+  const [payingOrderId,   setPayingOrderId]   = useState(null);
+  const [cancelingOrderId, setCancelingOrderId] = useState(null);
+  const [selectedDetailOrder, setSelectedDetailOrder] = useState(null);
 
   // Delivery + Tracking States
   const [deliveries,          setDeliveries]         = useState([]);
@@ -128,27 +130,9 @@ const FranchiseStaff = () => {
     fetchFoods();
   }, [])
 
-  /* ── order detail toggle ── */
-  const toggleDetail = async (orderId) => {
-    // collapse if already open
-    if (expandedOrderId === orderId) {
-      setExpandedOrderId(null);
-      return;
-    }
-    setExpandedOrderId(orderId);
-    // return cached detail if already fetched
-    if (orderDetails[orderId]) return;
-    try {
-      setDetailLoading(orderId);
-      const res = await getOrderDetailByOrderId(orderId);
-      setOrderDetails((prev) => ({ ...prev, [orderId]: res.data }));
-    } catch {
-      toast.error(`Cannot load detail for order ${orderId}`);
-      setExpandedOrderId(null);
-    } finally {
-      setDetailLoading(null);
-    }
-  };
+  /* ── order detail modal ── */
+  const openDetailModal  = (order) => setSelectedDetailOrder(order);
+  const closeDetailModal = () => setSelectedDetailOrder(null);
 
   /* ── handlers ── */
   const VNPAY_ONLY_OPTIONS = ["PAY_AFTER_ORDER", "PAY_AT_THE_END_OF_MONTH"];
@@ -277,6 +261,42 @@ const FranchiseStaff = () => {
       toast.error(err?.response?.data?.message ?? "Tạo link thanh toán thất bại.");
     } finally {
       setPayingOrderId(null);
+    }
+  };
+
+  const handleCancelOrder = async (order) => {
+    if (!order?.orderId) return;
+    const reason = window.prompt(`Nhập lý do hủy đơn ${order.orderId}:`, "");
+    if (reason === null) return;
+    if (!reason.trim()) {
+      toast.warn("Vui lòng nhập lý do hủy đơn.");
+      return;
+    }
+    try {
+      setCancelingOrderId(order.orderId);
+      await cancelOrder(order.orderId, reason);
+      toast.success(`Đã hủy đơn ${order.orderId}.`);
+
+      if (
+        order.paymentOption === "PAY_AFTER_ORDER" &&
+        (order.paymentStatus === "SUCCESS" || order.paymentStatus === "PAID")
+      ) {
+        try {
+          await refundPayment(order.orderId);
+          toast.success(`Đã gửi yêu cầu hoàn tiền cho đơn ${order.orderId}.`);
+        } catch (refundErr) {
+          toast.error(refundErr?.response?.data?.message ?? "Hoàn tiền thất bại — liên hệ quản lý.");
+        }
+      }
+
+      await fetchOrders(autoStoreId);
+      if (expandedOrderId === order.orderId) {
+        setExpandedOrderId(null);
+      }
+    } catch (err) {
+      toast.error(err?.response?.data?.message ?? "Không thể hủy đơn.");
+    } finally {
+      setCancelingOrderId(null);
     }
   };
 
@@ -555,14 +575,14 @@ const FranchiseStaff = () => {
                   <th className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">Payment</th>
                   <th className="px-6 py-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider">Order Status</th>
                   <th className="px-6 py-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider">Payment Status</th>
-                  <th className="px-6 py-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider">Details</th>
+                  <th className="px-6 py-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
                 {createdOrders.map((o) => {
-                  const isExpanded = expandedOrderId === o.orderId;
-                  const isLoadingDetail = detailLoading === o.orderId;
-                  const detail = orderDetails[o.orderId];
+                  const isExpanded = false; // sub-row removed — modal used instead
+                  const isLoadingDetail = false;
+                  const detail = null;
 
                   return (
                     <React.Fragment key={o.orderId}>
@@ -612,24 +632,19 @@ const FranchiseStaff = () => {
                             {o.paymentStatus ?? "—"}
                           </span>
                         </td>
-                        {/* Details + Pay */}
+                        {/* Details + Pay + Cancel */}
                         <td className="px-6 py-4 text-center">
                           <div className="flex items-center justify-center gap-2">
                             <button
-                              onClick={() => toggleDetail(o.orderId)}
-                              disabled={isLoadingDetail}
-                              className="inline-flex items-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-lg border border-primary/30 text-primary bg-primary/5 hover:bg-primary/15 transition-all duration-150 disabled:opacity-50"
+                              onClick={() => openDetailModal(o)}
+                              className="inline-flex items-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-lg border border-primary/30 text-primary bg-primary/5 hover:bg-primary/15 transition-all duration-150"
                             >
-                              {isLoadingDetail
-                                ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                                : isExpanded
-                                  ? <ChevronUp className="w-3.5 h-3.5" />
-                                  : <ChevronDown className="w-3.5 h-3.5" />
-                              }
-                              {isExpanded ? "Hide" : "View"}
+                              <Receipt className="w-3.5 h-3.5" />
+                              Detail
                             </button>
                             {o.paymentOption === "PAY_AFTER_ORDER" &&
-                             o.paymentStatus !== "SUCCESS" && o.paymentStatus !== "PAID" && (
+                             o.statusOrder !== "CANCELLED" && o.statusOrder !== "REJECTED" &&
+                             o.paymentStatus !== "SUCCESS" && o.paymentStatus !== "PAID" && o.paymentStatus !== "REFUNDED" && (
                               <button
                                 onClick={() => handleRetryPayment(o.orderId)}
                                 disabled={payingOrderId === o.orderId}
@@ -642,92 +657,23 @@ const FranchiseStaff = () => {
                                 Thanh toán
                               </button>
                             )}
+                            {(o.statusOrder === "PENDING" || o.statusOrder === "WAITING_FOR_UPDATE") && (
+                              <button
+                                onClick={() => handleCancelOrder(o)}
+                                disabled={cancelingOrderId === o.orderId}
+                                className="inline-flex items-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-lg bg-red-600 text-white hover:bg-red-700 transition-all duration-150 disabled:opacity-50"
+                              >
+                                {cancelingOrderId === o.orderId
+                                  ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                  : <XCircle className="w-3.5 h-3.5" />
+                                }
+                                Hủy đơn
+                              </button>
+                            )}
                           </div>
                         </td>
                       </tr>
 
-                      {/* ── Expandable detail sub-row ── */}
-                      {isExpanded && (
-                        <tr key={`${o.orderId}-detail`}>
-                          <td colSpan={8} className="px-0 py-0 bg-muted/30 border-b border-border">
-                            <div className="px-8 py-5">
-                              {!detail ? (
-                                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                  <Loader2 className="w-4 h-4 animate-spin" /> Loading detail…
-                                </div>
-                              ) : (
-                                <div className="space-y-3">
-                                  {/* header row */}
-                                  <div className="flex items-center justify-between mb-2">
-                                    <div className="flex items-center gap-2">
-                                      <Receipt className="w-4 h-4 text-primary" />
-                                      <span className="text-sm font-semibold text-foreground">Order Detail</span>
-                                      <span className="text-xs text-muted-foreground ml-1">#{detail.orderDetailId}</span>
-                                    </div>
-                                    {/* Track GHN button — shown only when a shipment exists for this orderDetail */}
-                                    {(() => {
-                                      const orderDetailId = o.orderDetail?.orderDetailId || detail?.orderDetailId;
-                                      const delivery = deliveries.find(d => d.orderDetailId === orderDetailId);
-                                      if (delivery?.ghnOrderCode) {
-                                        return (
-                                          <button
-                                            onClick={() => handleTrackDelivery(delivery)}
-                                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-50 text-emerald-600 border border-emerald-200 hover:bg-emerald-100 transition-colors"
-                                          >
-                                            <Map className="w-3.5 h-3.5" />
-                                            Theo dõi vận đơn GHN
-                                          </button>
-                                        );
-                                      }
-                                      return null;
-                                    })()}
-                                  </div>
-
-                                  {/* note */}
-                                  {o.note && (
-                                    <div className="flex items-start gap-2 px-3 py-2.5 rounded-lg bg-amber-50 border border-amber-200 text-sm text-amber-800">
-                                      <FileText className="w-4 h-4 mt-0.5 flex-shrink-0 text-amber-500" />
-                                      <span><span className="font-semibold">Note:</span> {o.note}</span>
-                                    </div>
-                                  )}
-
-                                  {/* items mini-table */}
-                                  <div className="rounded-lg overflow-hidden border border-border">
-                                    <table className="w-full text-xs">
-                                      <thead>
-                                        <tr className="bg-muted/60">
-                                          <th className="px-4 py-2 text-left font-semibold text-muted-foreground uppercase tracking-wide">Food Item</th>
-                                          <th className="px-4 py-2 text-center font-semibold text-muted-foreground uppercase tracking-wide">Quantity</th>
-                                          <th className="px-4 py-2 text-right font-semibold text-muted-foreground uppercase tracking-wide">Unit Price (VND)</th>
-                                          <th className="px-4 py-2 text-right font-semibold text-muted-foreground uppercase tracking-wide">Subtotal</th>
-                                        </tr>
-                                      </thead>
-                                      <tbody className="divide-y divide-border bg-background">
-                                        {detail.items?.map((item, idx) => (
-                                          <tr key={idx}>
-                                            <td className="px-4 py-2.5 font-medium text-foreground">{item.foodName}</td>
-                                            <td className="px-4 py-2.5 text-center text-muted-foreground">{item.quantity}</td>
-                                            <td className="px-4 py-2.5 text-right text-muted-foreground">{item.unitPrice?.toLocaleString()}</td>
-                                            <td className="px-4 py-2.5 text-right font-semibold text-foreground">{item.totalAmount?.toLocaleString()}</td>
-                                          </tr>
-                                        ))}
-                                      </tbody>
-                                      <tfoot>
-                                        <tr className="bg-primary/5 border-t border-primary/20">
-                                          <td colSpan={3} className="px-4 py-2.5 text-right text-xs font-bold text-foreground uppercase tracking-wide">Total</td>
-                                          <td className="px-4 py-2.5 text-right text-sm font-bold text-primary">
-                                            {detail.amount?.toLocaleString()}
-                                          </td>
-                                        </tr>
-                                      </tfoot>
-                                    </table>
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          </td>
-                        </tr>
-                      )}
                     </React.Fragment>
                   );
                 })}
@@ -750,6 +696,148 @@ const FranchiseStaff = () => {
             </p>
           </div>
         </div>
+      )}
+
+      {/* ── Order Detail Modal ── */}
+      {selectedDetailOrder && createPortal(
+        <div className="fixed inset-0 z-[9998] flex items-center justify-center p-6">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={closeDetailModal} />
+          <div className="relative bg-background border border-border rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col animate-fade-in">
+
+            {/* Modal Header */}
+            <div className="flex-shrink-0 px-5 py-4 border-b border-border flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Receipt className="w-5 h-5 text-primary" />
+                <h3 className="text-base font-bold text-foreground">Order Detail</h3>
+                <span className="text-xs text-muted-foreground font-mono bg-muted px-2 py-0.5 rounded-md">#{selectedDetailOrder.orderId}</span>
+              </div>
+              <button onClick={closeDetailModal} className="p-2 rounded-lg bg-muted hover:bg-destructive hover:text-destructive-foreground transition-colors">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="flex-1 overflow-y-auto p-5 space-y-5">
+
+              {/* Info Grid */}
+              <div className="grid grid-cols-2 gap-3">
+                {[
+                  { label: "Store", value: selectedDetailOrder.storeId },
+                  { label: "Order Date", value: selectedDetailOrder.orderDate ?? "—" },
+                  { label: "Priority", value: selectedDetailOrder.priorityLevel ?? "—" },
+                  { label: "Payment Method", value: selectedDetailOrder.paymentMethod ?? "—" },
+                  { label: "Payment Option", value: selectedDetailOrder.paymentOption ?? "—" },
+                  { label: "Cancel Reason", value: selectedDetailOrder.cancelReason ?? "—" },
+                ].map(({ label, value }) => (
+                  <div key={label} className="bg-muted/40 rounded-xl p-3 border border-border">
+                    <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">{label}</p>
+                    <p className="text-sm font-medium text-foreground break-all">{value}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Status Row */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-xl p-3 border border-border bg-card">
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Order Status</p>
+                  <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full ${
+                    selectedDetailOrder.statusOrder === "PENDING"    ? "bg-amber-100 text-amber-700" :
+                    selectedDetailOrder.statusOrder === "CANCELLED"  ? "bg-red-100 text-red-600" :
+                    selectedDetailOrder.statusOrder === "COMPLETED" || selectedDetailOrder.statusOrder === "DELIVERED" ? "bg-green-100 text-green-700" :
+                    selectedDetailOrder.statusOrder === "READY_TO_PICK" ? "bg-blue-100 text-blue-700" :
+                    selectedDetailOrder.statusOrder === "COOKING_DONE" || selectedDetailOrder.statusOrder === "IN_PROGRESS" ? "bg-purple-100 text-purple-700" :
+                    "bg-muted text-muted-foreground"
+                  }`}>
+                    <CheckCircle className="w-3.5 h-3.5" />
+                    {selectedDetailOrder.statusOrder ?? "—"}
+                  </span>
+                </div>
+                <div className="rounded-xl p-3 border border-border bg-card">
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Payment Status</p>
+                  <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full ${
+                    selectedDetailOrder.paymentStatus === "SUCCESS" || selectedDetailOrder.paymentStatus === "PAID"
+                      ? "bg-emerald-100 text-emerald-700" :
+                    selectedDetailOrder.paymentStatus === "FAILED"
+                      ? "bg-red-100 text-red-600" :
+                    selectedDetailOrder.paymentStatus === "PENDING"
+                      ? "bg-amber-100 text-amber-700" :
+                    "bg-muted text-muted-foreground"
+                  }`}>
+                    <CreditCard className="w-3.5 h-3.5" />
+                    {selectedDetailOrder.paymentStatus ?? "—"}
+                  </span>
+                </div>
+              </div>
+
+              {/* Note */}
+              {selectedDetailOrder.note && (
+                <div className="flex items-start gap-2 px-4 py-3 rounded-xl bg-amber-50 border border-amber-200 text-sm text-amber-800">
+                  <FileText className="w-4 h-4 mt-0.5 flex-shrink-0 text-amber-500" />
+                  <span><span className="font-semibold">Note: </span>{selectedDetailOrder.note}</span>
+                </div>
+              )}
+
+              {/* Items Table */}
+              {selectedDetailOrder.orderDetail && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                      Items — <span className="font-mono text-foreground">{selectedDetailOrder.orderDetail.orderDetailId}</span>
+                    </p>
+                    {/* GHN Track button */}
+                    {(() => {
+                      const delivery = deliveries.find(d => d.orderDetailId === selectedDetailOrder.orderDetail?.orderDetailId);
+                      if (delivery?.ghnOrderCode) {
+                        return (
+                          <button
+                            onClick={() => { closeDetailModal(); handleTrackDelivery(delivery); }}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-50 text-emerald-600 border border-emerald-200 hover:bg-emerald-100 transition-colors"
+                          >
+                            <Map className="w-3.5 h-3.5" />
+                            Theo dõi vận đơn GHN
+                          </button>
+                        );
+                      }
+                      return null;
+                    })()}
+                  </div>
+                  <div className="rounded-xl overflow-hidden border border-border">
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr className="bg-muted/60">
+                          <th className="px-4 py-2.5 text-left font-semibold text-muted-foreground uppercase tracking-wide">Food Item</th>
+                          <th className="px-4 py-2.5 text-center font-semibold text-muted-foreground uppercase tracking-wide">Qty</th>
+                          <th className="px-4 py-2.5 text-right font-semibold text-muted-foreground uppercase tracking-wide">Unit Price</th>
+                          <th className="px-4 py-2.5 text-right font-semibold text-muted-foreground uppercase tracking-wide">Subtotal</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border bg-background">
+                        {selectedDetailOrder.orderDetail.items?.map((item, idx) => (
+                          <tr key={idx}>
+                            <td className="px-4 py-2.5 font-medium text-foreground">{item.foodName}</td>
+                            <td className="px-4 py-2.5 text-center text-muted-foreground">{item.quantity}</td>
+                            <td className="px-4 py-2.5 text-right text-muted-foreground">{item.unitPrice?.toLocaleString()} đ</td>
+                            <td className="px-4 py-2.5 text-right font-semibold text-foreground">{item.totalAmount?.toLocaleString()} đ</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                      <tfoot>
+                        <tr className="bg-primary/5 border-t-2 border-primary/20">
+                          <td colSpan={3} className="px-4 py-3 text-right text-xs font-bold text-foreground uppercase tracking-wide">Total</td>
+                          <td className="px-4 py-3 text-right text-sm font-bold text-primary">
+                            {selectedDetailOrder.orderDetail.amount?.toLocaleString()} đ
+                          </td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+            </div>
+          </div>
+        </div>,
+        document.body
       )}
 
       {/* ── GHN Tracking Modal ── */}
