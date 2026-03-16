@@ -80,3 +80,12 @@ export const getStorePaymentRecords = (storeId) =>
   API.get(`/franchise-stores/${encodeURIComponent(storeId)}/payment-records`);
 
 export const createNewFranchiseStore = (data) => API.post("/franchise-stores", data);
+
+//address controller
+export const getProvinceId = () => API.get("/api/address/provinces");
+
+
+export const getDistrictAddress = (provinceId) => API.get(`/api/address/districts`, { params: { provinceId } });
+
+
+export const getWardAddress = (districtId) => API.get(`/api/address/wards`, {params: {districtId}});

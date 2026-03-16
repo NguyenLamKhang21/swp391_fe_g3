@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback } from "react";
-import { createPortal } from "react-dom";
 import {
   Package,
   Search,
@@ -12,14 +11,9 @@ import {
   Box,
   DollarSign,
   CalendarClock,
-  Pencil,
-  Trash2,
-  X,
-  Save,
-  Plus,
 } from "lucide-react";
 import { toast } from "react-toastify";
-import { getCentralKitchenFood, createCentralFood, updateCentralFood, deleteCentralFood } from "../api/authAPI";
+import { getCentralKitchenFood } from "../api/authAPI";
 
 /* ══════════════════════════════════════════════════════════════════════
    Status helpers
@@ -60,36 +54,11 @@ const fmtDate = (d) => (d ? new Date(d).toLocaleDateString("vi-VN") : "—");
 /* ══════════════════════════════════════════════════════════════════════
    Component
    ══════════════════════════════════════════════════════════════════════ */
-const EMPTY_FORM = {
-  foodName: "", amount: 0, expiryDate: "", manufacturingDate: "",
-  centralFoodStatus: "AVAILABLE", unitPriceFood: 0,
-  weight: 0, length: 0, width: 0, height: 0,
-  recipeId: "", centralFoodTypeId: "",
-};
-
-const toInputDate = (d) => {
-  if (!d) return "";
-  const date = new Date(d);
-  if (isNaN(date)) return "";
-  return date.toISOString().slice(0, 10);
-};
-
 const CentralKitchenInventory = () => {
   const [foods, setFoods]           = useState([]);
   const [loading, setLoading]       = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [selected, setSelected]     = useState(null);
-
-  const [editItem, setEditItem]       = useState(null);
-  const [editForm, setEditForm]       = useState(EMPTY_FORM);
-  const [editLoading, setEditLoading] = useState(false);
-
-  const [showCreate, setShowCreate]       = useState(false);
-  const [createForm, setCreateForm]       = useState(EMPTY_FORM);
-  const [createLoading, setCreateLoading] = useState(false);
-
-  const [deleteItem, setDeleteItem]       = useState(null);
-  const [deleteLoading, setDeleteLoading] = useState(false);
 
   /* ── Fetch ── */
   const fetchFoods = useCallback(async () => {
@@ -105,87 +74,7 @@ const CentralKitchenInventory = () => {
     }
   }, []);
 
-  useEffect(() => { fetchFoods(); }, [fetchFoods]);
-
-  /* ── Create ── */
-  const handleCreateChange = (field, value) => {
-    setCreateForm((prev) => ({ ...prev, [field]: value }));
-  };
-
-  const handleCreateSave = async () => {
-    if (!createForm.foodName.trim()) {
-      toast.warn("Vui lòng nhập tên thực phẩm.");
-      return;
-    }
-    try {
-      setCreateLoading(true);
-      await createCentralFood(createForm);
-      toast.success(`Đã thêm "${createForm.foodName}" thành công.`);
-      setShowCreate(false);
-      setCreateForm(EMPTY_FORM);
-      await fetchFoods();
-    } catch (err) {
-      toast.error(err?.response?.data?.message ?? "Không thể thêm thực phẩm.");
-    } finally {
-      setCreateLoading(false);
-    }
-  };
-
-  /* ── Edit ── */
-  const openEdit = (food) => {
-    setEditItem(food);
-    setEditForm({
-      foodName: food.foodName ?? "",
-      amount: food.amount ?? 0,
-      expiryDate: toInputDate(food.expiryDate),
-      manufacturingDate: toInputDate(food.manufacturingDate),
-      centralFoodStatus: food.centralFoodStatus ?? "AVAILABLE",
-      unitPriceFood: food.unitPriceFood ?? 0,
-      weight: food.weight ?? 0,
-      length: food.length ?? 0,
-      width: food.width ?? 0,
-      height: food.height ?? 0,
-      recipeId: food.recipeId ?? "",
-      centralFoodTypeId: food.centralFoodTypeId ?? food.centralFoodType?.centralFoodCategoryId ?? "",
-    });
-  };
-
-  const handleEditChange = (field, value) => {
-    setEditForm((prev) => ({ ...prev, [field]: value }));
-  };
-
-  const handleEditSave = async () => {
-    if (!editItem) return;
-    try {
-      setEditLoading(true);
-      await updateCentralFood(editItem.foodId, editForm);
-      toast.success(`Đã cập nhật "${editForm.foodName}" thành công.`);
-      setEditItem(null);
-      setSelected(null);
-      await fetchFoods();
-    } catch (err) {
-      toast.error(err?.response?.data?.message ?? "Không thể cập nhật thực phẩm.");
-    } finally {
-      setEditLoading(false);
-    }
-  };
-
-  /* ── Delete ── */
-  const handleDelete = async () => {
-    if (!deleteItem) return;
-    try {
-      setDeleteLoading(true);
-      await deleteCentralFood(deleteItem.foodId);
-      toast.success(`Đã xóa "${deleteItem.foodName}" thành công.`);
-      setDeleteItem(null);
-      setSelected(null);
-      await fetchFoods();
-    } catch (err) {
-      toast.error(err?.response?.data?.message ?? "Không thể xóa thực phẩm.");
-    } finally {
-      setDeleteLoading(false);
-    }
-  };
+  useEffect(() => { fetchFoods(); }, [fetchFoods]); // tssting 
 
   /* ── Filter ── */
   const filtered = foods.filter((f) => {
@@ -260,13 +149,6 @@ const CentralKitchenInventory = () => {
           <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
           Làm mới
         </button>
-        <button
-          onClick={() => { setCreateForm(EMPTY_FORM); setShowCreate(true); }}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 active:scale-[0.98] transition-all"
-        >
-          <Plus className="w-4 h-4" />
-          Thêm thực phẩm
-        </button>
       </div>
 
       {/* ── Table ── */}
@@ -333,27 +215,13 @@ const CentralKitchenInventory = () => {
                         </span>
                       </td>
                       <td className="px-6 py-4 text-center">
-                        <div className="flex items-center justify-center gap-1.5">
-                          <button
-                            onClick={() => setSelected(f)}
-                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
-                          >
-                            <Box className="w-3.5 h-3.5" />
-                            Xem
-                          </button>
-                          <button
-                            onClick={() => openEdit(f)}
-                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-amber-500/10 text-amber-600 hover:bg-amber-500/20 transition-colors"
-                          >
-                            <Pencil className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            onClick={() => setDeleteItem(f)}
-                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-red-500/10 text-red-600 hover:bg-red-500/20 transition-colors"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
+                        <button
+                          onClick={() => setSelected(f)}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+                        >
+                          <Box className="w-3.5 h-3.5" />
+                          Xem
+                        </button>
                       </td>
                     </tr>
                   );
@@ -386,35 +254,17 @@ const CentralKitchenInventory = () => {
 
             {/* Body */}
             <div className="p-6 space-y-4">
-              {/* Status + Action buttons */}
-              <div className="flex items-center justify-between gap-3">
-                {(() => {
-                  const st = statusStyle(selected.centralFoodStatus);
-                  const StIcon = st.icon;
-                  return (
-                    <div className={`rounded-xl p-3 border ${st.border} ${st.bg} flex items-center gap-3 flex-1`}>
-                      <StIcon className={`w-5 h-5 ${st.color}`} />
-                      <p className={`text-sm font-semibold ${st.color}`}>{st.label}</p>
-                    </div>
-                  );
-                })()}
-                <div className="flex gap-2 flex-shrink-0">
-                  <button
-                    onClick={() => { setSelected(null); openEdit(selected); }}
-                    className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold bg-amber-500/10 text-amber-600 hover:bg-amber-500/20 transition-colors"
-                  >
-                    <Pencil className="w-3.5 h-3.5" />
-                    Sửa
-                  </button>
-                  <button
-                    onClick={() => { setSelected(null); setDeleteItem(selected); }}
-                    className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold bg-red-500/10 text-red-600 hover:bg-red-500/20 transition-colors"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                    Xóa
-                  </button>
-                </div>
-              </div>
+              {/* Status */}
+              {(() => {
+                const st = statusStyle(selected.centralFoodStatus);
+                const StIcon = st.icon;
+                return (
+                  <div className={`rounded-xl p-3 border ${st.border} ${st.bg} flex items-center gap-3`}>
+                    <StIcon className={`w-5 h-5 ${st.color}`} />
+                    <p className={`text-sm font-semibold ${st.color}`}>{st.label}</p>
+                  </div>
+                );
+              })()}
 
               {/* Fields grid */}
               <div className="grid grid-cols-2 gap-3">
@@ -447,246 +297,6 @@ const CentralKitchenInventory = () => {
             </div>
           </div>
         </div>
-      )}
-      {/* ══════════════════ CREATE MODAL ══════════════════ */}
-      {showCreate && createPortal(
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowCreate(false)} />
-          <div className="relative bg-background border border-border rounded-2xl shadow-2xl w-full max-w-xl max-h-[90vh] flex flex-col animate-fade-in">
-            <div className="flex-shrink-0 px-5 py-3 border-b border-border flex items-center justify-between">
-              <h3 className="text-base font-bold text-foreground">Thêm thực phẩm mới</h3>
-              <button onClick={() => setShowCreate(false)} className="p-2 rounded-lg bg-muted hover:bg-destructive hover:text-destructive-foreground transition-colors">
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <div className="flex-1 overflow-y-auto p-5 space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Tên thực phẩm *</label>
-                <input type="text" value={createForm.foodName} onChange={(e) => handleCreateChange("foodName", e.target.value)}
-                  className="um-input w-full" placeholder="Nhập tên thực phẩm" />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Số lượng</label>
-                  <input type="number" min="0" value={createForm.amount} onChange={(e) => handleCreateChange("amount", Number(e.target.value))}
-                    className="um-input w-full" />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Đơn giá (VND)</label>
-                  <input type="number" min="0" value={createForm.unitPriceFood} onChange={(e) => handleCreateChange("unitPriceFood", Number(e.target.value))}
-                    className="um-input w-full" />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Ngày sản xuất</label>
-                  <input type="date" value={createForm.manufacturingDate} onChange={(e) => handleCreateChange("manufacturingDate", e.target.value)}
-                    className="um-input w-full" />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Hạn sử dụng</label>
-                  <input type="date" value={createForm.expiryDate} onChange={(e) => handleCreateChange("expiryDate", e.target.value)}
-                    className="um-input w-full" />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Trạng thái</label>
-                <select value={createForm.centralFoodStatus} onChange={(e) => handleCreateChange("centralFoodStatus", e.target.value)}
-                  className="um-input w-full">
-                  <option value="AVAILABLE">Còn hàng</option>
-                  <option value="OUT_OF_STOCK">Hết hàng</option>
-                </select>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Khối lượng (g)</label>
-                  <input type="number" min="0" value={createForm.weight} onChange={(e) => handleCreateChange("weight", Number(e.target.value))}
-                    className="um-input w-full" />
-                </div>
-                <div className="grid grid-cols-3 gap-2">
-                  <div>
-                    <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">D (cm)</label>
-                    <input type="number" min="0" value={createForm.length} onChange={(e) => handleCreateChange("length", Number(e.target.value))}
-                      className="um-input w-full" />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">R (cm)</label>
-                    <input type="number" min="0" value={createForm.width} onChange={(e) => handleCreateChange("width", Number(e.target.value))}
-                      className="um-input w-full" />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">C (cm)</label>
-                    <input type="number" min="0" value={createForm.height} onChange={(e) => handleCreateChange("height", Number(e.target.value))}
-                      className="um-input w-full" />
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Recipe ID</label>
-                  <input type="text" value={createForm.recipeId} onChange={(e) => handleCreateChange("recipeId", e.target.value)}
-                    className="um-input w-full" placeholder="(Tùy chọn)" />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Food Type ID</label>
-                  <input type="text" value={createForm.centralFoodTypeId} onChange={(e) => handleCreateChange("centralFoodTypeId", e.target.value)}
-                    className="um-input w-full" placeholder="(Tùy chọn)" />
-                </div>
-              </div>
-            </div>
-
-            <div className="flex-shrink-0 px-5 py-3 border-t border-border flex items-center justify-end gap-3">
-              <button onClick={() => setShowCreate(false)}
-                className="px-4 py-2 rounded-lg border border-border text-sm font-medium text-foreground hover:bg-muted transition-colors">
-                Hủy
-              </button>
-              <button onClick={handleCreateSave} disabled={createLoading}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-60">
-                {createLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-                Thêm
-              </button>
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
-
-      {/* ══════════════════ EDIT MODAL ══════════════════ */}
-      {editItem && createPortal(
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setEditItem(null)} />
-          <div className="relative bg-background border border-border rounded-2xl shadow-2xl w-full max-w-xl max-h-[90vh] flex flex-col animate-fade-in">
-            <div className="flex-shrink-0 px-5 py-3 border-b border-border flex items-center justify-between">
-              <div>
-                <h3 className="text-base font-bold text-foreground">Chỉnh sửa thực phẩm</h3>
-                <p className="text-xs text-muted-foreground mt-0.5 font-mono">{editItem.foodId}</p>
-              </div>
-              <button onClick={() => setEditItem(null)} className="p-2 rounded-lg bg-muted hover:bg-destructive hover:text-destructive-foreground transition-colors">
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <div className="flex-1 overflow-y-auto p-5 space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Tên thực phẩm</label>
-                <input type="text" value={editForm.foodName} onChange={(e) => handleEditChange("foodName", e.target.value)}
-                  className="um-input w-full" placeholder="Tên thực phẩm" />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Số lượng</label>
-                  <input type="number" min="0" value={editForm.amount} onChange={(e) => handleEditChange("amount", Number(e.target.value))}
-                    className="um-input w-full" />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Đơn giá (VND)</label>
-                  <input type="number" min="0" value={editForm.unitPriceFood} onChange={(e) => handleEditChange("unitPriceFood", Number(e.target.value))}
-                    className="um-input w-full" />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Ngày sản xuất</label>
-                  <input type="date" value={editForm.manufacturingDate} onChange={(e) => handleEditChange("manufacturingDate", e.target.value)}
-                    className="um-input w-full" />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Hạn sử dụng</label>
-                  <input type="date" value={editForm.expiryDate} onChange={(e) => handleEditChange("expiryDate", e.target.value)}
-                    className="um-input w-full" />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Trạng thái</label>
-                <select value={editForm.centralFoodStatus} onChange={(e) => handleEditChange("centralFoodStatus", e.target.value)}
-                  className="um-input w-full">
-                  <option value="AVAILABLE">Còn hàng</option>
-                  <option value="OUT_OF_STOCK">Hết hàng</option>
-                </select>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Khối lượng (g)</label>
-                  <input type="number" min="0" value={editForm.weight} onChange={(e) => handleEditChange("weight", Number(e.target.value))}
-                    className="um-input w-full" />
-                </div>
-                <div className="grid grid-cols-3 gap-2">
-                  <div>
-                    <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">D (cm)</label>
-                    <input type="number" min="0" value={editForm.length} onChange={(e) => handleEditChange("length", Number(e.target.value))}
-                      className="um-input w-full" />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">R (cm)</label>
-                    <input type="number" min="0" value={editForm.width} onChange={(e) => handleEditChange("width", Number(e.target.value))}
-                      className="um-input w-full" />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">C (cm)</label>
-                    <input type="number" min="0" value={editForm.height} onChange={(e) => handleEditChange("height", Number(e.target.value))}
-                      className="um-input w-full" />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex-shrink-0 px-5 py-3 border-t border-border flex items-center justify-end gap-3">
-              <button onClick={() => setEditItem(null)}
-                className="px-4 py-2 rounded-lg border border-border text-sm font-medium text-foreground hover:bg-muted transition-colors">
-                Hủy
-              </button>
-              <button onClick={handleEditSave} disabled={editLoading}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-60">
-                {editLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                Lưu thay đổi
-              </button>
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
-
-      {/* ══════════════════ DELETE CONFIRM ══════════════════ */}
-      {deleteItem && createPortal(
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setDeleteItem(null)} />
-          <div className="relative bg-background border border-border rounded-2xl shadow-2xl w-full max-w-sm animate-fade-in">
-            <div className="p-6 text-center space-y-4">
-              <div className="w-14 h-14 rounded-full bg-red-50 border border-red-200 flex items-center justify-center mx-auto">
-                <Trash2 className="w-7 h-7 text-red-500" />
-              </div>
-              <div>
-                <h3 className="text-lg font-bold text-foreground">Xóa thực phẩm?</h3>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Bạn có chắc muốn xóa <strong className="text-foreground">{deleteItem.foodName}</strong>?
-                  Hành động này không thể hoàn tác.
-                </p>
-              </div>
-              <div className="flex gap-3 justify-center pt-2">
-                <button onClick={() => setDeleteItem(null)}
-                  className="px-4 py-2 rounded-lg border border-border text-sm font-medium text-foreground hover:bg-muted transition-colors">
-                  Hủy
-                </button>
-                <button onClick={handleDelete} disabled={deleteLoading}
-                  className="flex items-center gap-2 px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-semibold hover:bg-red-700 active:scale-[0.98] transition-all disabled:opacity-60">
-                  {deleteLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
-                  Xóa
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>,
-        document.body
       )}
     </div>
   );
