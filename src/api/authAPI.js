@@ -21,7 +21,12 @@ export const getOrderDetailByOrderId = (orderId) => API.get(`/orders/${orderId}/
 export const confirmOrder = (orderId, priorityLevel) =>
   API.post(`/orders/${orderId}/confirm`, null, { params: { priorityLevel } });
 
-export const cancelOrder = (orderId) => API.post(`/orders/${orderId}/cancel`);
+export const cancelOrder = (orderId, reason = "") =>
+  API.post(
+    `/orders/${orderId}/cancel`,
+    null,
+    { params: reason?.trim() ? { reason: reason.trim() } : {} }
+  );
 
 export const updateOrderStatus = (orderId, status) =>
   API.put(`/orders/${orderId}/status`, { newStatus: status });
@@ -65,8 +70,8 @@ export const createPaymentByOrder = (orderId) =>
 export const createDebtPayment = (storeId) =>
   API.post(`/payment/debt/${encodeURIComponent(storeId)}`);
 
-export const refundPayment = (orderId, refundType = "02") =>
-  API.post(`/payment/refund/${orderId}`, null, { params: { refundType } });
+export const refundPayment = (orderId) =>
+  API.post(`/payment/refund/${orderId}`);
 
 export const getPaymentByTxnRef = (txnRef) =>
   API.get(`/payment/${txnRef}`);

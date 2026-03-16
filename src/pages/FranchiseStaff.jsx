@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { ShoppingCart, Store, CreditCard, FileText, Utensils, Hash, CheckCircle, Loader2, ClipboardList, ChevronDown, ChevronUp, Receipt, Plus, Trash2, Calendar, ExternalLink } from "lucide-react";
+import { ShoppingCart, Store, CreditCard, FileText, Utensils, Hash, CheckCircle, Loader2, ClipboardList, ChevronDown, ChevronUp, Receipt, Plus, Trash2, Calendar, ExternalLink, XCircle } from "lucide-react";
 import { toast } from "react-toastify";
 import API from "../api/axios";
-import { getOrdersByStore, getCentralKitchenFood, getOrderDetailByOrderId, createPaymentByOrder } from "../api/authAPI";
+import { getOrdersByStore, getCentralKitchenFood, getOrderDetailByOrderId, createPaymentByOrder, cancelOrder, refundPayment } from "../api/authAPI";
 
 const PAYMENT_OPTIONS = [
   { value: "PAY_AFTER_ORDER",         label: "Pay After Order"              },
@@ -38,6 +38,7 @@ const FranchiseStaff = () => {
   const [orderDetails,    setOrderDetails]  = useState({});
   const [detailLoading,   setDetailLoading] = useState(null);
   const [payingOrderId,   setPayingOrderId] = useState(null);
+  const [cancelingOrderId, setCancelingOrderId] = useState(null);
 
   // Read store info from localStorage (set at login for FRANCHISE_STAFF)
   const storeInfo = (() => {
@@ -227,6 +228,42 @@ const FranchiseStaff = () => {
       toast.error(err?.response?.data?.message ?? "Tạo link thanh toán thất bại.");
     } finally {
       setPayingOrderId(null);
+    }
+  };
+
+  const handleCancelOrder = async (order) => {
+    if (!order?.orderId) return;
+    const reason = window.prompt(`Nhập lý do hủy đơn ${order.orderId}:`, "");
+    if (reason === null) return;
+    if (!reason.trim()) {
+      toast.warn("Vui lòng nhập lý do hủy đơn.");
+      return;
+    }
+    try {
+      setCancelingOrderId(order.orderId);
+      await cancelOrder(order.orderId, reason);
+      toast.success(`Đã hủy đơn ${order.orderId}.`);
+
+      if (
+        order.paymentOption === "PAY_AFTER_ORDER" &&
+        (order.paymentStatus === "SUCCESS" || order.paymentStatus === "PAID")
+      ) {
+        try {
+          await refundPayment(order.orderId);
+          toast.success(`Đã gửi yêu cầu hoàn tiền cho đơn ${order.orderId}.`);
+        } catch (refundErr) {
+          toast.error(refundErr?.response?.data?.message ?? "Hoàn tiền thất bại — liên hệ quản lý.");
+        }
+      }
+
+      await fetchOrders(autoStoreId);
+      if (expandedOrderId === order.orderId) {
+        setExpandedOrderId(null);
+      }
+    } catch (err) {
+      toast.error(err?.response?.data?.message ?? "Không thể hủy đơn.");
+    } finally {
+      setCancelingOrderId(null);
     }
   };
 
@@ -505,7 +542,7 @@ const FranchiseStaff = () => {
                   <th className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">Payment</th>
                   <th className="px-6 py-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider">Order Status</th>
                   <th className="px-6 py-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider">Payment Status</th>
-                  <th className="px-6 py-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider">Details</th>
+                  <th className="px-6 py-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
@@ -562,7 +599,7 @@ const FranchiseStaff = () => {
                             {o.paymentStatus ?? "—"}
                           </span>
                         </td>
-                        {/* Details + Pay */}
+                        {/* Details + Pay + Cancel */}
                         <td className="px-6 py-4 text-center">
                           <div className="flex items-center justify-center gap-2">
                             <button
@@ -579,7 +616,8 @@ const FranchiseStaff = () => {
                               {isExpanded ? "Hide" : "View"}
                             </button>
                             {o.paymentOption === "PAY_AFTER_ORDER" &&
-                             o.paymentStatus !== "SUCCESS" && o.paymentStatus !== "PAID" && (
+                             o.statusOrder !== "CANCELLED" && o.statusOrder !== "REJECTED" &&
+                             o.paymentStatus !== "SUCCESS" && o.paymentStatus !== "PAID" && o.paymentStatus !== "REFUNDED" && (
                               <button
                                 onClick={() => handleRetryPayment(o.orderId)}
                                 disabled={payingOrderId === o.orderId}
@@ -590,6 +628,19 @@ const FranchiseStaff = () => {
                                   : <ExternalLink className="w-3.5 h-3.5" />
                                 }
                                 Thanh toán
+                              </button>
+                            )}
+                            {(o.statusOrder === "PENDING" || o.statusOrder === "WAITING_FOR_UPDATE") && (
+                              <button
+                                onClick={() => handleCancelOrder(o)}
+                                disabled={cancelingOrderId === o.orderId}
+                                className="inline-flex items-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-lg bg-red-600 text-white hover:bg-red-700 transition-all duration-150 disabled:opacity-50"
+                              >
+                                {cancelingOrderId === o.orderId
+                                  ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                  : <XCircle className="w-3.5 h-3.5" />
+                                }
+                                Hủy đơn
                               </button>
                             )}
                           </div>
