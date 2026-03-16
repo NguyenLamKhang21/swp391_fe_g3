@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { ShoppingCart, Store, CreditCard, FileText, Utensils, Hash, CheckCircle, Loader2, ClipboardList, ChevronDown, ChevronUp, Receipt, Plus, Trash2, Calendar } from "lucide-react";
+import { ShoppingCart, Store, CreditCard, FileText, Utensils, Hash, CheckCircle, Loader2, ClipboardList, ChevronDown, ChevronUp, Receipt, Plus, Trash2, Calendar, ExternalLink } from "lucide-react";
 import { toast } from "react-toastify";
 import API from "../api/axios";
 import { getOrdersByStore, getCentralKitchenFood, getOrderDetailByOrderId, createPaymentByOrder } from "../api/authAPI";
@@ -37,6 +37,7 @@ const FranchiseStaff = () => {
   const [expandedOrderId, setExpandedOrderId] = useState(null);
   const [orderDetails,    setOrderDetails]  = useState({});
   const [detailLoading,   setDetailLoading] = useState(null);
+  const [payingOrderId,   setPayingOrderId] = useState(null);
 
   // Read store info from localStorage (set at login for FRANCHISE_STAFF)
   const storeInfo = (() => {
@@ -204,6 +205,28 @@ const FranchiseStaff = () => {
       toast.error(msg);
     } finally {
       setLoading(false);
+    }
+  };
+
+  /* ── Retry payment for an existing order ── */
+  const handleRetryPayment = async (orderId) => {
+    try {
+      setPayingOrderId(orderId);
+      const payRes = await createPaymentByOrder(orderId);
+      const payData = payRes.data?.data ?? payRes.data;
+      const paymentUrl = payData?.paymentUrl;
+      const txnRef     = payData?.txnRef;
+      if (paymentUrl) {
+        window.__vnpayPopup = window.open(paymentUrl, "_blank");
+        navigate(`/payment/vnpay-return?txnRef=${txnRef}&orderId=${orderId}`);
+      } else {
+        toast.error("Không nhận được link thanh toán.");
+      }
+    } catch (err) {
+      console.error("[RetryPayment] error:", err?.response?.status, err?.response?.data);
+      toast.error(err?.response?.data?.message ?? "Tạo link thanh toán thất bại.");
+    } finally {
+      setPayingOrderId(null);
     }
   };
 
@@ -539,21 +562,37 @@ const FranchiseStaff = () => {
                             {o.paymentStatus ?? "—"}
                           </span>
                         </td>
-                        {/* Details toggle */}
+                        {/* Details + Pay */}
                         <td className="px-6 py-4 text-center">
-                          <button
-                            onClick={() => toggleDetail(o.orderId)}
-                            disabled={isLoadingDetail}
-                            className="inline-flex items-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-lg border border-primary/30 text-primary bg-primary/5 hover:bg-primary/15 transition-all duration-150 disabled:opacity-50"
-                          >
-                            {isLoadingDetail
-                              ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                              : isExpanded
-                                ? <ChevronUp className="w-3.5 h-3.5" />
-                                : <ChevronDown className="w-3.5 h-3.5" />
-                            }
-                            {isExpanded ? "Hide" : "View"}
-                          </button>
+                          <div className="flex items-center justify-center gap-2">
+                            <button
+                              onClick={() => toggleDetail(o.orderId)}
+                              disabled={isLoadingDetail}
+                              className="inline-flex items-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-lg border border-primary/30 text-primary bg-primary/5 hover:bg-primary/15 transition-all duration-150 disabled:opacity-50"
+                            >
+                              {isLoadingDetail
+                                ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                : isExpanded
+                                  ? <ChevronUp className="w-3.5 h-3.5" />
+                                  : <ChevronDown className="w-3.5 h-3.5" />
+                              }
+                              {isExpanded ? "Hide" : "View"}
+                            </button>
+                            {o.paymentOption === "PAY_AFTER_ORDER" &&
+                             o.paymentStatus !== "SUCCESS" && o.paymentStatus !== "PAID" && (
+                              <button
+                                onClick={() => handleRetryPayment(o.orderId)}
+                                disabled={payingOrderId === o.orderId}
+                                className="inline-flex items-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-all duration-150 disabled:opacity-50"
+                              >
+                                {payingOrderId === o.orderId
+                                  ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                  : <ExternalLink className="w-3.5 h-3.5" />
+                                }
+                                Thanh toán
+                              </button>
+                            )}
+                          </div>
                         </td>
                       </tr>
 
