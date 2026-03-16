@@ -773,14 +773,6 @@ const FranchiseStaff = () => {
           </div>
         </div>
       )}
-                    </React.Fragment>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
 
       {/* ── Empty state ── */}
       {createdOrders.length === 0 && (
