@@ -499,6 +499,17 @@ const SupplyCoordinatorOrders = () => {
                   ))}
                 </div>
 
+                {/* ── Cancel reason ── */}
+                {selectedOrder.statusOrder === "CANCELLED" && selectedOrder.cancelReason && (
+                  <div className="flex items-start gap-2 px-4 py-3 rounded-xl bg-red-50 border border-red-200">
+                    <XCircle className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[10px] font-semibold text-red-700 uppercase tracking-wider">Lý do hủy đơn</p>
+                      <p className="text-sm text-red-800 mt-0.5 break-words">{selectedOrder.cancelReason}</p>
+                    </div>
+                  </div>
+                )}
+
                 {/* ── Section 2: Order items ── */}
                 {orderDetail && orderDetail.items?.length > 0 && (
                   <div className="border border-border rounded-xl overflow-hidden">

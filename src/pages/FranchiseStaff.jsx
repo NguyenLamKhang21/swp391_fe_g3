@@ -734,10 +734,19 @@ const FranchiseStaff = () => {
                                   </div>
 
                                   {/* note */}
-                                  {o.note && (
-                                    <div className="flex items-start gap-2 px-3 py-2.5 rounded-lg bg-amber-50 border border-amber-200 text-sm text-amber-800">
-                                      <FileText className="w-4 h-4 mt-0.5 flex-shrink-0 text-amber-500" />
-                                      <span><span className="font-semibold">Note:</span> {o.note}</span>
+                                  <div className={`flex items-start gap-2 px-3 py-2.5 rounded-lg text-sm ${o.note ? "bg-amber-50 border border-amber-200 text-amber-800" : "bg-muted/50 border border-border text-muted-foreground"}`}>
+                                    <FileText className={`w-4 h-4 mt-0.5 flex-shrink-0 ${o.note ? "text-amber-500" : "text-muted-foreground"}`} />
+                                    <span>
+                                      <span className="font-semibold">Note:</span>{" "}
+                                      {o.note || <span className="italic">Không có ghi chú</span>}
+                                    </span>
+                                  </div>
+
+                                  {/* cancel reason */}
+                                  {o.statusOrder === "CANCELLED" && o.cancelReason && (
+                                    <div className="flex items-start gap-2 px-3 py-2.5 rounded-lg bg-red-50 border border-red-200 text-sm text-red-800">
+                                      <XCircle className="w-4 h-4 mt-0.5 flex-shrink-0 text-red-500" />
+                                      <span><span className="font-semibold">Lý do hủy:</span> {o.cancelReason}</span>
                                     </div>
                                   )}
 
