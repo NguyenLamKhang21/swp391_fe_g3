@@ -82,10 +82,13 @@ export const getStorePaymentRecords = (storeId) =>
 export const createNewFranchiseStore = (data) => API.post("/franchise-stores", data);
 
 //address controller
-export const getProvinceId = () => API.get("/api/address/provinces");
+export const getProvinceId = () => API.get("/address/provinces");
 
 
-export const getDistrictAddress = (provinceId) => API.get(`/api/address/districts`, { params: { provinceId } });
+export const getDistrictAddress = (provinceId) => API.get(`/address/districts`, { params: { provinceId } });
 
 
-export const getWardAddress = (districtId) => API.get(`/api/address/wards`, {params: {districtId}});
+export const getWardAddress = (districtId) => API.get(`/address/wards`, { params: { districtId } });
+
+//delivery
+export const createDelivery = (data) => API.post("/delivery/create-order", data);

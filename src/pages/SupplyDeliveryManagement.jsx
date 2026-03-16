@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { getProvinceId, getDistrictAddress, getWardAddress, getAllOrders } from "../api/authAPI";
+import { getProvinceId, getDistrictAddress, getWardAddress, getAllOrders, createDelivery } from "../api/authAPI";
 import { MapPin, Eye, X, Package, FileText } from "lucide-react";
 
 const SupplyDeliveryManagement = () => {
@@ -26,8 +26,65 @@ const SupplyDeliveryManagement = () => {
 
   const [selectedOrder, setSelectedOrder] = useState(null);
 
-  const openOrderDetail = (order) => setSelectedOrder(order);
+  // Delivery Form States
+  const [deliveryData, setDeliveryData] = useState({
+    payment_type_id: 2,
+    note: "Deliver during office hours",
+    required_note: "CHOTHUHANG",
+    to_name: "",
+    to_phone: "",
+    cod_amount: 0,
+    service_type_id: 2,
+  });
+  const [submittingDelivery, setSubmittingDelivery] = useState(false);
+  const [deliverySuccess, setDeliverySuccess] = useState(null);
+  const [deliveryError, setDeliveryError] = useState(null);
+
+  const openOrderDetail = (order) => {
+    setSelectedOrder(order);
+    setDeliverySuccess(null);
+    setDeliveryError(null);
+    setDeliveryData({
+      payment_type_id: 2,
+      note: "Deliver during office hours",
+      required_note: "CHOTHUHANG",
+      to_name: "",
+      to_phone: "",
+      cod_amount: order?.orderDetail?.amount || 0,
+      service_type_id: 2,
+    });
+  };
+
   const closeModal = () => setSelectedOrder(null);
+
+  const handleDeliverySubmit = async (e) => {
+    e.preventDefault();
+    setSubmittingDelivery(true);
+    setDeliveryError(null);
+    setDeliverySuccess(null);
+    try {
+      const payload = {
+        ...deliveryData,
+        payment_type_id: Number(deliveryData.payment_type_id),
+        cod_amount: Number(deliveryData.cod_amount),
+        service_type_id: Number(deliveryData.service_type_id),
+        storeId: selectedOrder?.storeId,
+        orderDetailId: selectedOrder?.orderDetail?.orderDetailId || "",
+      };
+      await createDelivery(payload);
+      setDeliverySuccess("Tạo đơn giao hàng thành công!");
+    } catch (err) {
+      console.error("Error creating delivery:", err);
+      setDeliveryError("Không thể tạo đơn giao hàng. Vui lòng thử lại.");
+    } finally {
+      setSubmittingDelivery(false);
+    }
+  };
+
+  const handleDeliveryInputChange = (e) => {
+    const { name, value } = e.target;
+    setDeliveryData((prev) => ({ ...prev, [name]: value }));
+  };
 
   useEffect(() => {
     const fetchProvinces = async () => {
@@ -127,6 +184,8 @@ const SupplyDeliveryManagement = () => {
           <MapPin className="w-6 h-6 text-primary" />
           Quản lý Giao hàng & Cung ứng
         </h2>
+
+        <h3>Cung cấp thông tin giao hàng</h3>
 
         <div className="max-w-md space-y-4">
           <div className="space-y-2">
@@ -424,6 +483,80 @@ const SupplyDeliveryManagement = () => {
                       </tfoot>
                     </table>
                   </div>
+                </div>
+              )}
+
+              {/* TẠO ĐƠN GIAO HÀNG (DELIVERY FORM) */}
+              {selectedOrder && (
+                <div className="border border-border rounded-xl mt-6 p-4 md:p-5 bg-muted/30 shadow-sm">
+                  <h4 className="text-base font-bold text-foreground mb-4 flex items-center gap-2">
+                    <Package className="w-5 h-5 text-primary" />
+                    Tạo Đơn Giao Hàng
+                  </h4>
+                  {deliverySuccess && (
+                    <div className="mb-4 p-3 bg-emerald-50 text-emerald-700 text-sm rounded-lg border border-emerald-200">
+                      {deliverySuccess}
+                    </div>
+                  )}
+                  {deliveryError && (
+                    <div className="mb-4 p-3 bg-red-50 text-red-700 text-sm rounded-lg border border-red-200">
+                      {deliveryError}
+                    </div>
+                  )}
+                  <form onSubmit={handleDeliverySubmit} className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Cột 1 */}
+                      <div className="space-y-1.5 flex flex-col justify-end">
+                        <label className="text-xs font-semibold text-foreground">Tên người nhận (to_name)</label>
+                        <input type="text" name="to_name" required value={deliveryData.to_name} onChange={handleDeliveryInputChange} className="w-full text-sm rounded-lg border border-input px-3 py-2.5 bg-background focus:ring-2 focus:ring-primary outline-none transition-shadow" placeholder="VD: Hoàng văn" />
+                      </div>
+                      <div className="space-y-1.5 flex flex-col justify-end">
+                        <label className="text-xs font-semibold text-foreground">Số điện thoại (to_phone)</label>
+                        <input type="text" name="to_phone" required value={deliveryData.to_phone} onChange={handleDeliveryInputChange} className="w-full text-sm rounded-lg border border-input px-3 py-2.5 bg-background focus:ring-2 focus:ring-primary outline-none transition-shadow" placeholder="VD: 0977503776" />
+                      </div>
+
+                      {/* Cột 2 */}
+                      <div className="space-y-1.5 flex flex-col justify-end">
+                        <label className="text-xs font-semibold text-foreground">Tiền thu hộ / COD (cod_amount)</label>
+                        <input type="number" name="cod_amount" required value={deliveryData.cod_amount} onChange={handleDeliveryInputChange} className="w-full text-sm rounded-lg border border-input px-3 py-2.5 bg-background focus:ring-2 focus:ring-primary outline-none transition-shadow" />
+                      </div>
+                      <div className="space-y-1.5 flex flex-col justify-end">
+                        <label className="text-xs font-semibold text-foreground">Người trả phí (payment_type_id)</label>
+                        <select name="payment_type_id" value={deliveryData.payment_type_id} onChange={handleDeliveryInputChange} className="w-full text-sm rounded-lg border border-input px-3 py-2.5 bg-background focus:ring-2 focus:ring-primary outline-none transition-shadow">
+                          <option value={1}>1 - Người bán trả</option>
+                          <option value={2}>2 - Người mua trả</option>
+                        </select>
+                      </div>
+
+                      {/* Cột 3 */}
+                      <div className="space-y-1.5 flex flex-col justify-end">
+                        <label className="text-xs font-semibold text-foreground">Dịch vụ (service_type_id)</label>
+                        <select name="service_type_id" value={deliveryData.service_type_id} onChange={handleDeliveryInputChange} className="w-full text-sm rounded-lg border border-input px-3 py-2.5 bg-background focus:ring-2 focus:ring-primary outline-none transition-shadow">
+                          <option value={1}>1 - Nhanh</option>
+                          <option value={2}>2 - Chuẩn</option>
+                        </select>
+                      </div>
+                      <div className="space-y-1.5 flex flex-col justify-end">
+                        <label className="text-xs font-semibold text-foreground">Ghi chú bắt buộc (required_note)</label>
+                        <select name="required_note" value={deliveryData.required_note} onChange={handleDeliveryInputChange} className="w-full text-sm rounded-lg border border-input px-3 py-2.5 bg-background focus:ring-2 focus:ring-primary outline-none transition-shadow">
+                          <option value="CHOTHUHANG">Cho thử hàng</option>
+                          <option value="CHOXEMHANGKHONGTHU">Cho xem hàng, không thử</option>
+                          <option value="KHONGCHOXEMHANG">Không cho xem hàng</option>
+                        </select>
+                      </div>
+
+                      {/* Full width ghi chú */}
+                      <div className="space-y-1.5 md:col-span-2">
+                        <label className="text-xs font-semibold text-foreground">Ghi chú thêm (note)</label>
+                        <textarea name="note" value={deliveryData.note} onChange={handleDeliveryInputChange} rows={2} className="w-full text-sm rounded-lg border border-input px-3 py-2.5 bg-background focus:ring-2 focus:ring-primary outline-none transition-shadow resize-none" placeholder="VD: Deliver during office hours"></textarea>
+                      </div>
+                    </div>
+                    <div className="flex justify-end pt-3">
+                      <button type="submit" disabled={submittingDelivery} className="inline-flex items-center gap-2 px-6 py-2.5 bg-primary text-primary-foreground text-sm font-semibold rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50">
+                        {submittingDelivery ? "Đang xử lý..." : "Xác nhận Tạo Đơn Giao Hàng"}
+                      </button>
+                    </div>
+                  </form>
                 </div>
               )}
             </div>
