@@ -92,3 +92,8 @@ export const getWardAddress = (districtId) => API.get(`/address/wards`, { params
 
 //delivery
 export const createDelivery = (data) => API.post("/delivery/create-order", data);
+
+export const trackOrder = (orderCode) => API.get(`/delivery/track/${orderCode}`);
+
+export const getAllDelivery = () => API.get(`/delivery`);
+
