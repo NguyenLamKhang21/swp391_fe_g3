@@ -632,8 +632,8 @@ const SupplyDeliveryManagement = () => {
                 </div>
               )}
 
-              {/* TẠO ĐƠN GIAO HÀNG (DELIVERY FORM) */}
-              {selectedOrder && (
+              {/* TẠO ĐƠN GIAO HÀNG (DELIVERY FORM) — ẩn khi đơn bị hủy/từ chối */}
+              {selectedOrder && selectedOrder.statusOrder !== "CANCELLED" && selectedOrder.statusOrder !== "REJECTED" && (
                 <div className="border border-border rounded-xl mt-6 p-4 md:p-5 bg-muted/30 shadow-sm">
                   <h4 className="text-base font-bold text-foreground mb-4 flex items-center gap-2">
                     <Package className="w-5 h-5 text-primary" />
