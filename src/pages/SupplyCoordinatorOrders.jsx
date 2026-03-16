@@ -375,7 +375,7 @@ const SupplyCoordinatorOrders = () => {
                 <tr className="admin-table-header">
                   <th className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">Order ID</th>
                   <th className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">Store</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">Order Date</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">Delivery Date</th>
                   <th className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">Priority</th>
                   <th className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">Payment</th>
                   <th className="px-6 py-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider">Order Status</th>
@@ -490,7 +490,7 @@ const SupplyCoordinatorOrders = () => {
                     { label: "Order Status",   value: selectedOrder.statusOrder },
                     { label: "Payment Status", value: selectedOrder.paymentStatus ?? "—" },
                     { label: "Priority",       value: selectedOrder.priorityLevel ?? "—" },
-                    { label: "Ngày đặt",       value: selectedOrder.orderDate ?? "—" },
+                    { label: "Delivery Date",       value: selectedOrder.orderDate ?? "—" },
                   ].map((f) => (
                     <div key={f.label} className="bg-muted/50 rounded-lg p-2">
                       <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">{f.label}</p>

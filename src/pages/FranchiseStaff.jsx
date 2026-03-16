@@ -431,6 +431,7 @@ const FranchiseStaff = () => {
                 id="fs-delivery-date"
                 name="orderDate"
                 value={form.orderDate}
+                min={new Date().toISOString().split("T")[0]}
                 onChange={handleChange}
                 className="um-input pl-10 w-full"
               />

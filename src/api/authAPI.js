@@ -29,7 +29,7 @@ export const cancelOrder = (orderId, reason = "") =>
   );
 
 export const updateOrderStatus = (orderId, status) =>
-  API.put(`/orders/${orderId}/status`, { newStatus: status });
+  API.put(`/orders/${orderId}/status`, null, { params: { newStatus: status } });
 
 export const updateOrderPriority = (orderId, newPriority, note = "") =>
   API.patch(`/orders/${orderId}/priority`, { newPriority, note });
