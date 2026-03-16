@@ -674,6 +674,105 @@ const FranchiseStaff = () => {
                         </td>
                       </tr>
 
+                      {/* ── Expandable detail sub-row ── */}
+                      {isExpanded && (
+                        <tr key={`${o.orderId}-detail`}>
+                          <td colSpan={8} className="px-0 py-0 bg-muted/30 border-b border-border">
+                            <div className="px-8 py-5">
+                              {!detail ? (
+                                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                  <Loader2 className="w-4 h-4 animate-spin" /> Loading detail…
+                                </div>
+                              ) : (
+                                <div className="space-y-3">
+                                  {/* header row */}
+                                  <div className="flex items-center justify-between mb-2">
+                                    <div className="flex items-center gap-2">
+                                      <Receipt className="w-4 h-4 text-primary" />
+                                      <span className="text-sm font-semibold text-foreground">Order Detail</span>
+                                      <span className="text-xs text-muted-foreground ml-1">#{detail.orderDetailId}</span>
+                                    </div>
+                                    {/* Tracking button if exists */}
+                                    {(() => {
+                                      const orderDetailId = o.orderDetail?.orderDetailId || detail?.orderDetailId;
+                                      const delivery = deliveries.find(d => d.orderDetailId === orderDetailId);
+                                      if (delivery && delivery.ghnOrderCode) {
+                                        return (
+                                          <button
+                                            onClick={() => handleTrackDelivery(delivery)}
+                                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition-colors"
+                                          >
+                                            <Map className="w-3.5 h-3.5" />
+                                            Theo dõi vận đơn GHN
+                                          </button>
+                                        );
+                                      }
+                                      return null;
+                                    })()}
+                                  </div>
+
+                                  {/* note */}
+                                  <div className={`flex items-start gap-2 px-3 py-2.5 rounded-lg text-sm ${o.note ? "bg-amber-50 border border-amber-200 text-amber-800" : "bg-muted/50 border border-border text-muted-foreground"}`}>
+                                    <FileText className={`w-4 h-4 mt-0.5 flex-shrink-0 ${o.note ? "text-amber-500" : "text-muted-foreground"}`} />
+                                    <span>
+                                      <span className="font-semibold">Note:</span>{" "}
+                                      {o.note || <span className="italic">Không có ghi chú</span>}
+                                    </span>
+                                  </div>
+
+                                  {/* cancel reason */}
+                                  {o.statusOrder === "CANCELLED" && o.cancelReason && (
+                                    <div className="flex items-start gap-2 px-3 py-2.5 rounded-lg bg-red-50 border border-red-200 text-sm text-red-800">
+                                      <XCircle className="w-4 h-4 mt-0.5 flex-shrink-0 text-red-500" />
+                                      <span><span className="font-semibold">Lý do hủy:</span> {o.cancelReason}</span>
+                                    </div>
+                                  )}
+
+                                  {/* items mini-table */}
+                                  <div className="rounded-lg overflow-hidden border border-border">
+                                    <table className="w-full text-xs">
+                                      <thead>
+                                        <tr className="bg-muted/60">
+                                          <th className="px-4 py-2 text-left font-semibold text-muted-foreground uppercase tracking-wide">Food Item</th>
+                                          <th className="px-4 py-2 text-center font-semibold text-muted-foreground uppercase tracking-wide">Quantity</th>
+                                          <th className="px-4 py-2 text-right font-semibold text-muted-foreground uppercase tracking-wide">Unit Price (VND)</th>
+                                          <th className="px-4 py-2 text-right font-semibold text-muted-foreground uppercase tracking-wide">Subtotal</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody className="divide-y divide-border bg-background">
+                                        {detail.items?.map((item, idx) => (
+                                          <tr key={idx}>
+                                            <td className="px-4 py-2.5 font-medium text-foreground">{item.foodName}</td>
+                                            <td className="px-4 py-2.5 text-center text-muted-foreground">{item.quantity}</td>
+                                            <td className="px-4 py-2.5 text-right text-muted-foreground">{item.unitPrice?.toLocaleString()}</td>
+                                            <td className="px-4 py-2.5 text-right font-semibold text-foreground">{item.totalAmount?.toLocaleString()}</td>
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                      <tfoot>
+                                        <tr className="bg-primary/5 border-t border-primary/20">
+                                          <td colSpan={3} className="px-4 py-2.5 text-right text-xs font-bold text-foreground uppercase tracking-wide">Total</td>
+                                          <td className="px-4 py-2.5 text-right text-sm font-bold text-primary">
+                                            {detail.amount?.toLocaleString()}
+                                          </td>
+                                        </tr>
+                                      </tfoot>
+                                    </table>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
                     </React.Fragment>
                   );
                 })}
