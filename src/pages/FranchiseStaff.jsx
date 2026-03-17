@@ -26,6 +26,19 @@ const EMPTY_FORM = {
 
 const EMPTY_ITEM = { centralFoodId: "", quantity: 1 };
 
+const FS_TABS = [
+  { key: "ALL",           label: "Tất cả" },
+  { key: "PENDING",       label: "Pending" },
+  { key: "APPROVED",      label: "Approved" },
+  { key: "CONFIRMED",     label: "Confirmed" },
+  { key: "COOKING",       label: "Cooking" },
+  { key: "COOKING_DONE",  label: "Cooking Done" },
+  { key: "READY_TO_PICK", label: "Ready To Pick" },
+  { key: "DELIVERED",     label: "Delivered" },
+  { key: "CANCELLED",     label: "Cancelled" },
+  { key: "REJECTED",      label: "Rejected" },
+];
+
 /* ══════════════════════════════════════════════════════════════════════ */
 const FranchiseStaff = () => {
   const navigate = useNavigate();
@@ -34,6 +47,8 @@ const FranchiseStaff = () => {
   const [loading,         setLoading]       = useState(false);
   const [createdOrders,   setCreatedOrders] = useState([]);
   const [lastStoreId,     setLastStoreId]   = useState("");
+  const [activeTab,       setActiveTab]     = useState("ALL");
+  const [searchTerm,      setSearchTerm]    = useState("");
   const [foods,           setFoods]         = useState([]);
   const [expandedOrderId, setExpandedOrderId] = useState(null);
   const [orderDetails,    setOrderDetails]  = useState({});
@@ -555,14 +570,71 @@ const FranchiseStaff = () => {
         </form>
       </div>
 
-      {/* ── Created Orders Table ── */}
+      {/* ── Filter Tabs + Search ── */}
       {createdOrders.length > 0 && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <div className="flex gap-1 bg-muted rounded-lg p-1 overflow-x-auto max-w-full">
+              {FS_TABS.map((t) => {
+                const count = t.key === "ALL" ? createdOrders.length : createdOrders.filter((o) => o.statusOrder === t.key).length;
+                return (
+                  <button
+                    key={t.key}
+                    onClick={() => setActiveTab(t.key)}
+                    className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all whitespace-nowrap flex items-center gap-1.5 ${
+                      activeTab === t.key
+                        ? "bg-primary text-primary-foreground shadow"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {t.label}
+                    {count > 0 && (
+                      <span className={`px-1.5 py-0.5 rounded-full text-[10px] leading-none font-bold ${
+                        activeTab === t.key
+                          ? "bg-primary-foreground/20 text-primary-foreground"
+                          : "bg-foreground/10 text-muted-foreground"
+                      }`}>
+                        {count}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+            <div className="relative min-w-48">
+              <ClipboardList className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+              <input
+                type="text"
+                placeholder="Tìm Order ID..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="um-input pl-10 py-2 text-sm w-full"
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Created Orders Table ── */}
+      {(() => {
+        const filteredOrders = createdOrders.filter((o) => {
+          if (activeTab !== "ALL" && o.statusOrder !== activeTab) return false;
+          if (searchTerm) {
+            const term = searchTerm.toLowerCase();
+            return (
+              (o.orderId?.toLowerCase() ?? "").includes(term) ||
+              (o.storeId?.toLowerCase() ?? "").includes(term)
+            );
+          }
+          return true;
+        });
+        return filteredOrders.length > 0 ? (
         <div className="admin-card rounded-xl overflow-hidden">
           <div className="px-6 py-4 border-b border-border flex items-center justify-between">
             <div>
               <h3 className="text-base font-semibold text-foreground">Orders Status — {autoStoreName || lastStoreId}</h3>
             </div>
-            <span className="badge badge-delivered">{createdOrders.length} order{createdOrders.length !== 1 ? "s" : ""}</span>
+            <span className="badge badge-delivered">{filteredOrders.length} order{filteredOrders.length !== 1 ? "s" : ""}</span>
           </div>
 
           <div className="overflow-x-auto">
@@ -580,7 +652,7 @@ const FranchiseStaff = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {createdOrders.map((o) => {
+                {filteredOrders.map((o) => {
                   const isExpanded = false; // sub-row removed — modal used instead
                   const isLoadingDetail = false;
                   const detail = null;
@@ -597,7 +669,7 @@ const FranchiseStaff = () => {
                             <p className="font-medium text-foreground">{o.orderId}</p>
                           </div>
                         </td>
-                        <td className="px-6 py-4 text-foreground">{o.storeId}</td>
+                        <td className="px-6 py-4 text-foreground">{autoStoreName || o.storeId}</td>
                         <td className="px-6 py-4 text-muted-foreground">{o.orderDate ?? "—"}</td>
                         <td className="px-6 py-4 text-foreground">{o.priorityLevel ?? "—"}</td>
                         <td className="px-6 py-4">
@@ -773,9 +845,20 @@ const FranchiseStaff = () => {
             </table>
           </div>
         </div>
-      )}
+        ) : createdOrders.length > 0 ? (
+          <div className="admin-card rounded-xl p-12 flex flex-col items-center gap-4 text-center">
+            <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center">
+              <ClipboardList className="w-8 h-8 text-muted-foreground" />
+            </div>
+            <p className="text-base font-semibold text-foreground">Không có đơn hàng nào</p>
+            <p className="text-sm text-muted-foreground">
+              {searchTerm ? "Không tìm thấy kết quả." : `Không có đơn hàng ở trạng thái "${FS_TABS.find(t => t.key === activeTab)?.label}".`}
+            </p>
+          </div>
+        ) : null;
+      })()}
 
-      {/* ── Empty state ── */}
+      {/* ── Empty state (no orders at all) ── */}
       {createdOrders.length === 0 && (
         <div className="admin-card rounded-xl p-12 flex flex-col items-center gap-4 text-center">
           <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center">
@@ -814,7 +897,7 @@ const FranchiseStaff = () => {
               {/* Info Grid */}
               <div className="grid grid-cols-2 gap-3">
                 {[
-                  { label: "Store", value: selectedDetailOrder.storeId },
+                  { label: "Store", value: autoStoreName || selectedDetailOrder.storeId },
                   { label: "Order Date", value: selectedDetailOrder.orderDate ?? "—" },
                   { label: "Priority", value: selectedDetailOrder.priorityLevel ?? "—" },
                   { label: "Payment Method", value: selectedDetailOrder.paymentMethod ?? "—" },

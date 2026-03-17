@@ -21,6 +21,7 @@ import {
   createDebtPayment,
   getStorePaymentRecords,
   refundPayment,
+  getAllStore,
 } from "../api/authAPI";
 
 /* ═══════════════════════════════════════════════════════════════════════
@@ -47,6 +48,12 @@ const TABS = [
   { key: "PENDING",            label: "Pending" },
   { key: "WAITING_FOR_UPDATE", label: "Waiting" },
   { key: "APPROVED",           label: "Approved" },
+  { key: "CONFIRMED",          label: "Confirmed" },
+  { key: "COOKING",            label: "Cooking" },
+  { key: "COOKING_DONE",       label: "Cooking Done" },
+  { key: "READY_TO_PICK",      label: "Ready To Pick" },
+  { key: "DELIVERED",          label: "Delivered" },
+  { key: "CANCELLED",          label: "Cancelled" },
   { key: "REJECTED",           label: "Rejected" },
 ];
 
@@ -74,6 +81,23 @@ const SupplyCoordinatorOrders = () => {
   const [showRejectForm, setShowRejectForm]   = useState(false);
   const [selectedPriority, setSelectedPriority] = useState(2);
   const [priorityNote, setPriorityNote]       = useState("");
+
+  // Store name map
+  const [storeNameMap, setStoreNameMap] = useState({});
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await getAllStore();
+        const list = Array.isArray(res.data) ? res.data : res.data?.data ?? [];
+        const map = {};
+        list.forEach((s) => { if (s.storeId) map[s.storeId] = s.storeName ?? s.storeId; });
+        setStoreNameMap(map);
+      } catch { /* silent */ }
+    })();
+  }, []);
+
+  const storeName = (id) => storeNameMap[id] || id;
 
   /* ── Fetch all orders ── */
   const fetchOrders = useCallback(async () => {
@@ -258,17 +282,20 @@ const SupplyCoordinatorOrders = () => {
     return (
       (o.orderId?.toLowerCase() ?? "").includes(term) ||
       (o.storeId?.toLowerCase() ?? "").includes(term) ||
+      (storeName(o.storeId)?.toLowerCase() ?? "").includes(term) ||
       (o.statusOrder?.toLowerCase() ?? "").includes(term)
     );
   });
 
   /* ── Stats ── */
   const stats = {
-    total:    orders.length,
-    pending:  orders.filter((o) => o.statusOrder === "PENDING").length,
-    waiting:  orders.filter((o) => o.statusOrder === "WAITING_FOR_UPDATE").length,
-    approved: orders.filter((o) => ["APPROVED", "CONFIRMED"].includes(o.statusOrder)).length,
-    rejected: orders.filter((o) => ["REJECTED", "CANCELLED"].includes(o.statusOrder)).length,
+    total:     orders.length,
+    pending:   orders.filter((o) => o.statusOrder === "PENDING").length,
+    waiting:   orders.filter((o) => o.statusOrder === "WAITING_FOR_UPDATE").length,
+    approved:  orders.filter((o) => ["APPROVED", "CONFIRMED"].includes(o.statusOrder)).length,
+    cooking:   orders.filter((o) => ["COOKING", "COOKING_DONE"].includes(o.statusOrder)).length,
+    delivered: orders.filter((o) => o.statusOrder === "DELIVERED").length,
+    cancelled: orders.filter((o) => ["REJECTED", "CANCELLED"].includes(o.statusOrder)).length,
   };
 
   /* ═════════════════════════════════════ RENDER ═════════════════════════════════════ */
@@ -290,13 +317,15 @@ const SupplyCoordinatorOrders = () => {
       </div>
 
       {/* ── Stats cards ── */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
         {[
-          { label: "Tổng đơn",     value: stats.total,    variant: "stat-card-blue" },
-          { label: "Pending",      value: stats.pending,  variant: "stat-card-orange" },
-          { label: "Waiting",      value: stats.waiting,  variant: "stat-card-purple" },
-          { label: "Approved",     value: stats.approved, variant: "stat-card-green" },
-          { label: "Rejected",     value: stats.rejected, variant: "stat-card-blue" },
+          { label: "Tổng đơn",     value: stats.total,     variant: "stat-card-blue" },
+          { label: "Pending",      value: stats.pending,   variant: "stat-card-orange" },
+          { label: "Waiting",      value: stats.waiting,   variant: "stat-card-purple" },
+          { label: "Approved",     value: stats.approved,  variant: "stat-card-green" },
+          { label: "Cooking",      value: stats.cooking,   variant: "stat-card-orange" },
+          { label: "Delivered",    value: stats.delivered,  variant: "stat-card-green" },
+          { label: "Cancelled",    value: stats.cancelled, variant: "stat-card-red" },
         ].map((s) => (
           <div key={s.label} className={`stat-card rounded-xl p-4 ${s.variant}`}>
             <p className="text-xs text-muted-foreground font-medium">{s.label}</p>
@@ -307,20 +336,32 @@ const SupplyCoordinatorOrders = () => {
 
       {/* ── Tabs + Search ── */}
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <div className="flex gap-1 bg-muted rounded-lg p-1">
-          {TABS.map((t) => (
-            <button
-              key={t.key}
-              onClick={() => setActiveTab(t.key)}
-              className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
-                activeTab === t.key
-                  ? "bg-primary text-primary-foreground shadow"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              {t.label}
-            </button>
-          ))}
+        <div className="flex gap-1 bg-muted rounded-lg p-1 overflow-x-auto max-w-full">
+          {TABS.map((t) => {
+            const count = t.key === "ALL" ? orders.length : orders.filter((o) => o.statusOrder === t.key).length;
+            return (
+              <button
+                key={t.key}
+                onClick={() => setActiveTab(t.key)}
+                className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all whitespace-nowrap flex items-center gap-1.5 ${
+                  activeTab === t.key
+                    ? "bg-primary text-primary-foreground shadow"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {t.label}
+                {count > 0 && (
+                  <span className={`px-1.5 py-0.5 rounded-full text-[10px] leading-none font-bold ${
+                    activeTab === t.key
+                      ? "bg-primary-foreground/20 text-primary-foreground"
+                      : "bg-foreground/10 text-muted-foreground"
+                  }`}>
+                    {count}
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </div>
         <div className="flex items-center gap-3">
           <div className="relative">
@@ -397,7 +438,7 @@ const SupplyCoordinatorOrders = () => {
                           <p className="font-medium text-foreground">{o.orderId}</p>
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-foreground">{o.storeId}</td>
+                      <td className="px-6 py-4 text-foreground">{storeName(o.storeId)}</td>
                       <td className="px-6 py-4 text-muted-foreground">{o.orderDate ?? "—"}</td>
                       <td className="px-6 py-4 text-foreground">{o.priorityLevel ?? "—"}</td>
                       <td className="px-6 py-4">
@@ -459,7 +500,7 @@ const SupplyCoordinatorOrders = () => {
                   Chi tiết — {selectedOrder.orderId}
                 </h3>
                 <p className="text-[11px] text-muted-foreground mt-0.5">
-                  Store: {selectedOrder.storeId} · {selectedOrder.orderDate}
+                  Store: {storeName(selectedOrder.storeId)} · {selectedOrder.orderDate}
                 </p>
               </div>
               <button
@@ -485,7 +526,7 @@ const SupplyCoordinatorOrders = () => {
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                   {[
                     { label: "Order ID",       value: selectedOrder.orderId },
-                    { label: "Store",          value: selectedOrder.storeId },
+                    { label: "Store",          value: storeName(selectedOrder.storeId) },
                     { label: "Payment",        value: selectedOrder.paymentOption },
                     { label: "Order Status",   value: selectedOrder.statusOrder },
                     { label: "Payment Status", value: selectedOrder.paymentStatus ?? "—" },
@@ -567,7 +608,7 @@ const SupplyCoordinatorOrders = () => {
                     <ShieldAlert className={`w-4 h-4 flex-shrink-0 ${hasDebt ? "text-red-600" : "text-green-600"}`} />
                     <div className="flex-1 min-w-0">
                       <p className={`text-xs font-semibold ${hasDebt ? "text-red-700" : "text-green-700"}`}>
-                        Công nợ — {selectedOrder.storeId}:
+                        Công nợ — {storeName(selectedOrder.storeId)}:
                         {hasDebt ? " Có nợ chưa thanh toán" : " Không nợ"}
                       </p>
                       {storeOrders.length > 0 && (
@@ -767,7 +808,7 @@ const SupplyCoordinatorOrders = () => {
                       Thanh toán công nợ Store
                     </h4>
                     <p className="text-[10px] text-amber-600">
-                      Store {selectedOrder.storeId} có nợ chưa thanh toán. Tạo link thanh toán nợ qua VNPay.
+                      Store {storeName(selectedOrder.storeId)} có nợ chưa thanh toán. Tạo link thanh toán nợ qua VNPay.
                     </p>
                     <button
                       onClick={handleDebtPayment}

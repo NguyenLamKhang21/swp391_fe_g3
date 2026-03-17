@@ -1,11 +1,13 @@
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import {
   UserPlus, User, Mail, Lock, Phone, Shield,
   CheckCircle, Loader2, Eye, EyeOff,
   RefreshCw, Search, Users, AlertTriangle, Store,
+  X, Calendar, Clock, Hash, Info,
 } from "lucide-react";
 import { toast } from "react-toastify";
-import { createUser, getAllUsers } from "../api/authAPI";
+import { createUser, getAllUsers, getAllStore } from "../api/authAPI";
 
 /* ─── Role config ─── */
 const ROLE_META = {
@@ -61,6 +63,24 @@ const UserManagement = () => {
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [fetchError,   setFetchError]   = useState(null);
   const [search,  setSearch]  = useState("");
+  const [selectedUser, setSelectedUser] = useState(null);
+
+  /* ── stores map (email → store) for Franchise Staff ── */
+  const [storeMap, setStoreMap] = useState({});
+
+  const fetchStores = async () => {
+    try {
+      const res = await getAllStore();
+      const list = Array.isArray(res.data)
+        ? res.data
+        : Array.isArray(res.data?.data) ? res.data.data : [];
+      const map = {};
+      list.forEach((s) => {
+        if (s.managerEmail) map[s.managerEmail.toLowerCase()] = s;
+      });
+      setStoreMap(map);
+    } catch { /* silent */ }
+  };
 
   /* ── fetch all users ── */
   const fetchUsers = async () => {
@@ -83,7 +103,7 @@ const UserManagement = () => {
     }
   };
 
-  useEffect(() => { fetchUsers(); }, []);
+  useEffect(() => { fetchUsers(); fetchStores(); }, []);
 
   /* ── form handlers ── */
   const handleChange = (e) => {
@@ -113,7 +133,8 @@ const UserManagement = () => {
       if (payload?.statusCode === 0 || payload?.data) {
         toast.success(`Account "${form.fullName}" created successfully!`);
         setForm(EMPTY_FORM);
-        fetchUsers(); // refresh the table
+        fetchUsers();
+        fetchStores();
       } else {
         toast.error(payload?.message ?? "Failed to create account.");
       }
@@ -122,6 +143,11 @@ const UserManagement = () => {
     } finally {
       setCreating(false);
     }
+  };
+
+  const getUserStore = (u) => {
+    if (u.role !== "FRANCHISE_STAFF") return null;
+    return storeMap[u.email?.toLowerCase()] ?? null;
   };
 
   /* ── filtered users ── */
@@ -314,7 +340,7 @@ const UserManagement = () => {
             {/* Refresh */}
             <button
               id="um-refresh-btn"
-              onClick={fetchUsers}
+              onClick={() => { fetchUsers(); fetchStores(); }}
               disabled={loadingUsers}
               className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-border text-sm text-foreground hover:bg-muted transition-colors disabled:opacity-50"
             >
@@ -367,13 +393,14 @@ const UserManagement = () => {
                     <th className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">User</th>
                     <th className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider hidden sm:table-cell">Phone</th>
                     <th className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">Role</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider hidden md:table-cell">Store</th>
                     <th className="px-6 py-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider">Status</th>
                     <th className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider hidden lg:table-cell">Created At</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
                   {filtered.map((u, idx) => (
-                    <tr key={u.id ?? idx} className="admin-table-row" style={{ animationDelay: `${idx * 40}ms` }}>
+                    <tr key={u.id ?? idx} className="admin-table-row cursor-pointer" style={{ animationDelay: `${idx * 40}ms` }} onClick={() => setSelectedUser(u)}>
 
                       {/* User cell */}
                       <td className="px-6 py-4">
@@ -394,6 +421,23 @@ const UserManagement = () => {
                       {/* Role */}
                       <td className="px-6 py-4">
                         <RoleBadge role={u.role} />
+                      </td>
+
+                      {/* Store */}
+                      <td className="px-6 py-4 hidden md:table-cell">
+                        {(() => {
+                          const store = getUserStore(u);
+                          if (!store) return <span className="text-xs text-muted-foreground">—</span>;
+                          return (
+                            <div className="flex items-center gap-1.5">
+                              <Store className="w-3.5 h-3.5 text-primary/60 flex-shrink-0" />
+                              <div className="min-w-0">
+                                <p className="text-xs font-medium text-foreground truncate">{store.storeName}</p>
+                                <p className="text-[10px] text-muted-foreground font-mono">{store.storeId}</p>
+                              </div>
+                            </div>
+                          );
+                        })()}
                       </td>
 
                       {/* Status */}
@@ -432,6 +476,118 @@ const UserManagement = () => {
           </div>
         )}
       </div>
+
+      {/* ══════════════════ ACCOUNT DETAIL MODAL ══════════════════ */}
+      {selectedUser && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setSelectedUser(null)} />
+
+          <div className="relative bg-background border border-border rounded-2xl shadow-2xl w-full max-w-md animate-fade-in">
+            {/* Header */}
+            <div className="px-6 py-4 border-b border-border flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Avatar name={selectedUser.fullName} />
+                <div>
+                  <h3 className="text-lg font-bold text-foreground">{selectedUser.fullName}</h3>
+                  <p className="text-xs text-muted-foreground">{selectedUser.email}</p>
+                </div>
+              </div>
+              <button onClick={() => setSelectedUser(null)} className="p-2 rounded-lg hover:bg-muted transition-colors">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="p-6 space-y-4">
+              {/* Status + Role */}
+              <div className="flex items-center gap-3">
+                <RoleBadge role={selectedUser.role} />
+                {selectedUser.active ? (
+                  <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
+                    <CheckCircle className="w-3.5 h-3.5" />
+                    Active
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-red-500 bg-red-50 px-2.5 py-1 rounded-full border border-red-200">
+                    <AlertTriangle className="w-3.5 h-3.5" />
+                    Inactive
+                  </span>
+                )}
+              </div>
+
+              {/* Detail fields */}
+              <div className="space-y-3">
+                {[
+                  { label: "User ID",      value: selectedUser.id,       icon: Hash     },
+                  { label: "Họ và tên",     value: selectedUser.fullName, icon: User     },
+                  { label: "Email",         value: selectedUser.email,    icon: Mail     },
+                  { label: "Số điện thoại", value: selectedUser.phone,    icon: Phone    },
+                  { label: "Vai trò",       value: ROLE_META[selectedUser.role]?.label ?? selectedUser.role, icon: Shield },
+                  { label: "Ngày tạo",      value: fmtDate(selectedUser.createdAt),  icon: Calendar },
+                  { label: "Cập nhật lần cuối", value: fmtDate(selectedUser.updatedAt), icon: Clock },
+                ].map(({ label, value, icon: Icon }) => (
+                  <div key={label} className="flex items-start gap-3 bg-muted/50 rounded-lg p-3">
+                    <Icon className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">{label}</p>
+                      <p className="text-sm font-medium text-foreground mt-0.5 break-all">{value ?? "—"}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Assigned Store (Franchise Staff only) */}
+              {(() => {
+                const store = getUserStore(selectedUser);
+                if (selectedUser.role !== "FRANCHISE_STAFF") return null;
+                return (
+                  <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Store className="w-4 h-4 text-primary" />
+                      <p className="text-sm font-semibold text-foreground">Cửa hàng được gán</p>
+                    </div>
+                    {store ? (
+                      <div className="space-y-2 pl-6">
+                        <div>
+                          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Tên cửa hàng</p>
+                          <p className="text-sm font-medium text-foreground">{store.storeName}</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Store ID</p>
+                          <p className="text-sm font-mono text-foreground">{store.storeId}</p>
+                        </div>
+                        {store.address && (
+                          <div>
+                            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Địa chỉ</p>
+                            <p className="text-sm text-foreground">
+                              {[store.address, store.ward, store.district, store.province].filter(Boolean).join(", ")}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground pl-6 italic">
+                        Chưa được gán cửa hàng nào
+                      </p>
+                    )}
+                  </div>
+                );
+              })()}
+            </div>
+
+            {/* Footer */}
+            <div className="px-6 py-4 border-t border-border flex justify-end">
+              <button
+                onClick={() => setSelectedUser(null)}
+                className="px-4 py-2.5 rounded-lg border border-border text-sm font-medium hover:bg-muted transition-colors"
+              >
+                Đóng
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 };

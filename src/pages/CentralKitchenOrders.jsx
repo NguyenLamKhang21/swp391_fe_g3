@@ -11,6 +11,7 @@ import {
   getOrderDetailByOrderId,
   updateOrderStatus,
   decreaseFoodBaseOnOrder,
+  getAllStore,
 } from "../api/authAPI";
 
 /* ═══════════════════════════════════════════════════════════════════════
@@ -53,6 +54,24 @@ const CentralKitchenOrders = () => {
   const [detailLoading, setDetailLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const [cancelledOrders, setCancelledOrders] = useState([]);
+
+  const [storeNameMap, setStoreNameMap] = useState({});
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await getAllStore();
+        const list = Array.isArray(res.data) ? res.data : res.data?.data ?? [];
+        const map = {};
+        list.forEach((s) => {
+          if (s.storeId) map[s.storeId] = s.storeName ?? s.storeId;
+        });
+        setStoreNameMap(map);
+      } catch (err) {
+        console.error("[CentralKitchen] Failed to load stores:", err?.response?.status, err?.response?.data);
+      }
+    })();
+  }, []);
+  const storeName = (id) => storeNameMap[id] || id;
 
   /* ── Fetch orders ── */
   const fetchOrders = useCallback(async () => {
@@ -143,7 +162,8 @@ const CentralKitchenOrders = () => {
     const term = searchTerm.toLowerCase();
     return (
       (o.orderId?.toLowerCase() ?? "").includes(term) ||
-      (o.storeId?.toLowerCase() ?? "").includes(term)
+      (o.storeId?.toLowerCase() ?? "").includes(term) ||
+      (storeName(o.storeId)?.toLowerCase() ?? "").includes(term)
     );
   });
 
@@ -306,7 +326,7 @@ const CentralKitchenOrders = () => {
                           <p className="font-medium text-foreground">{o.orderId}</p>
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-foreground">{o.storeId}</td>
+                      <td className="px-6 py-4 text-foreground">{storeName(o.storeId)}</td>
                       <td className="px-6 py-4 text-muted-foreground">{o.orderDate ?? "—"}</td>
                       <td className="px-6 py-4">
                         {o.priorityLevel ? (
@@ -354,7 +374,7 @@ const CentralKitchenOrders = () => {
                   Đơn hàng — {selectedOrder.orderId}
                 </h3>
                 <p className="text-[11px] text-muted-foreground mt-0.5">
-                  Store: {selectedOrder.storeId} · {selectedOrder.orderDate}
+                  Store: {storeName(selectedOrder.storeId)} · {selectedOrder.orderDate}
                 </p>
               </div>
               <button
@@ -380,7 +400,7 @@ const CentralKitchenOrders = () => {
                 <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
                   {[
                     { label: "Order ID",   value: selectedOrder.orderId },
-                    { label: "Store",      value: selectedOrder.storeId },
+                    { label: "Store",      value: storeName(selectedOrder.storeId) },
                     { label: "Status",     value: selectedOrder.statusOrder },
                     { label: "Priority",   value: selectedOrder.priorityLevel ? `Level ${selectedOrder.priorityLevel}` : "—" },
                     { label: "Payment",    value: selectedOrder.paymentOption ?? "—" },

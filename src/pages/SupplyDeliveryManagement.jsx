@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { getProvinceId, getDistrictAddress, getWardAddress, getAllOrders, createDelivery, getAllDelivery, trackOrder } from "../api/authAPI";
+import { getProvinceId, getDistrictAddress, getWardAddress, getAllOrders, createDelivery, getAllDelivery, trackOrder, getAllStore } from "../api/authAPI";
 import { MapPin, Eye, X, Package, FileText, Truck, Map } from "lucide-react";
 
 const SupplyDeliveryManagement = () => {
@@ -23,6 +23,20 @@ const SupplyDeliveryManagement = () => {
   const [orders, setOrders] = useState([]);
   const [loadingOrders, setLoadingOrders] = useState(false);
   const [ordersError, setOrdersError] = useState(null);
+
+  const [storeNameMap, setStoreNameMap] = useState({});
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await getAllStore();
+        const list = Array.isArray(res.data) ? res.data : res.data?.data ?? [];
+        const map = {};
+        list.forEach((s) => { if (s.storeId) map[s.storeId] = s.storeName ?? s.storeId; });
+        setStoreNameMap(map);
+      } catch { /* silent */ }
+    })();
+  }, []);
+  const getStoreName = (id) => storeNameMap[id] || id;
 
   const [deliveries, setDeliveries] = useState([]);
   const [loadingDeliveries, setLoadingDeliveries] = useState(false);
@@ -546,7 +560,7 @@ const SupplyDeliveryManagement = () => {
                   Chi tiết — {selectedOrder.orderId}
                 </h3>
                 <p className="text-[11px] text-muted-foreground mt-0.5">
-                  Store: {selectedOrder.storeId} · Ngày: {selectedOrder.orderDate ? new Date(selectedOrder.orderDate).toLocaleDateString() : "N/A"}
+                  Store: {getStoreName(selectedOrder.storeId)} · Ngày: {selectedOrder.orderDate ? new Date(selectedOrder.orderDate).toLocaleDateString() : "N/A"}
                 </p>
               </div>
               <button
@@ -563,7 +577,7 @@ const SupplyDeliveryManagement = () => {
               <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                 {[
                   { label: "Order ID",       value: selectedOrder.orderId },
-                  { label: "Store",          value: selectedOrder.storeId },
+                  { label: "Store",          value: getStoreName(selectedOrder.storeId) },
                   { label: "Payment Method", value: selectedOrder.paymentMethod },
                   { label: "Payment Option", value: selectedOrder.paymentOption },
                   { label: "Order Status",   value: selectedOrder.statusOrder },
