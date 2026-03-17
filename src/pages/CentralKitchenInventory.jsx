@@ -17,6 +17,9 @@ import {
   Trash2,
   X,
   Save,
+  Clock,
+  ShieldAlert,
+  ArrowDownCircle,
 } from "lucide-react";
 import { toast } from "react-toastify";
 import {
@@ -24,6 +27,10 @@ import {
   createCentralFood,
   updateCentralFood,
   deleteCentralFood,
+  getCentralFoodByStatus,
+  getCentralFoodExpiringSoon,
+  getCentralFoodExpired,
+  decreaseFoodBaseOnOrder,
 } from "../api/authAPI";
 
 /* ══════════════════════════════════════════════════════════════════════
@@ -80,11 +87,20 @@ const EMPTY_FORM = {
   centralFoodTypeId: "",
 };
 
+const TABS = [
+  { key: "ALL",           label: "Tất cả",       icon: Package,      color: "text-primary" },
+  { key: "AVAILABLE",     label: "Còn hàng",     icon: CheckCircle,  color: "text-emerald-600" },
+  { key: "OUT_OF_STOCK",  label: "Hết hàng",     icon: XCircle,      color: "text-red-600" },
+  { key: "EXPIRING_SOON", label: "Sắp hết hạn",  icon: Clock,        color: "text-amber-600" },
+  { key: "EXPIRED",       label: "Đã hết hạn",   icon: ShieldAlert,  color: "text-red-600" },
+];
+
 const CentralKitchenInventory = () => {
   const [foods, setFoods]           = useState([]);
   const [loading, setLoading]       = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [selected, setSelected]     = useState(null);
+  const [activeTab, setActiveTab]   = useState("ALL");
 
   const [showForm, setShowForm]     = useState(false);
   const [editingFood, setEditingFood] = useState(null);
@@ -92,11 +108,34 @@ const CentralKitchenInventory = () => {
   const [saving, setSaving]         = useState(false);
   const [deleting, setDeleting]     = useState(null);
 
-  /* ── Fetch ── */
+  const [showDecrease, setShowDecrease] = useState(false);
+  const [decreaseOrderId, setDecreaseOrderId] = useState("");
+  const [decreasing, setDecreasing] = useState(false);
+
+  const [expiringDays, setExpiringDays] = useState(7);
+
+  const [expiringSoonCount, setExpiringSoonCount] = useState(0);
+  const [expiredCount, setExpiredCount] = useState(0);
+
+  /* ── Fetch based on active tab ── */
   const fetchFoods = useCallback(async () => {
     try {
       setLoading(true);
-      const res  = await getCentralKitchenFood();
+      let res;
+      switch (activeTab) {
+        case "AVAILABLE":
+        case "OUT_OF_STOCK":
+          res = await getCentralFoodByStatus(activeTab);
+          break;
+        case "EXPIRING_SOON":
+          res = await getCentralFoodExpiringSoon(expiringDays);
+          break;
+        case "EXPIRED":
+          res = await getCentralFoodExpired();
+          break;
+        default:
+          res = await getCentralKitchenFood();
+      }
       const data = res.data?.data ?? res.data ?? [];
       setFoods(Array.isArray(data) ? data : []);
     } catch {
@@ -104,9 +143,23 @@ const CentralKitchenInventory = () => {
     } finally {
       setLoading(false);
     }
+  }, [activeTab, expiringDays]);
+
+  const fetchBadgeCounts = useCallback(async () => {
+    try {
+      const [soonRes, expRes] = await Promise.all([
+        getCentralFoodExpiringSoon(7),
+        getCentralFoodExpired(),
+      ]);
+      const soonData = soonRes.data?.data ?? soonRes.data ?? [];
+      const expData  = expRes.data?.data ?? expRes.data ?? [];
+      setExpiringSoonCount(Array.isArray(soonData) ? soonData.length : 0);
+      setExpiredCount(Array.isArray(expData) ? expData.length : 0);
+    } catch { /* silent */ }
   }, []);
 
   useEffect(() => { fetchFoods(); }, [fetchFoods]);
+  useEffect(() => { fetchBadgeCounts(); }, [fetchBadgeCounts]);
 
   /* ── Open create/edit form ── */
   const openCreateForm = () => {
@@ -166,6 +219,7 @@ const CentralKitchenInventory = () => {
       }
       closeForm();
       await fetchFoods();
+      fetchBadgeCounts();
     } catch (err) {
       toast.error(err?.response?.data?.message ?? "Lưu thất bại.");
     } finally {
@@ -181,10 +235,35 @@ const CentralKitchenInventory = () => {
       toast.success(`Đã xóa "${food.foodName}".`);
       if (selected?.foodId === food.foodId) setSelected(null);
       await fetchFoods();
+      fetchBadgeCounts();
     } catch (err) {
       toast.error(err?.response?.data?.message ?? "Xóa thất bại.");
     } finally {
       setDeleting(null);
+    }
+  };
+
+  /* ── Decrease stock by order ── */
+  const handleDecreaseStock = async (e) => {
+    e.preventDefault();
+    if (!decreaseOrderId.trim()) {
+      toast.warn("Vui lòng nhập Order ID.");
+      return;
+    }
+    try {
+      setDecreasing(true);
+      const res = await decreaseFoodBaseOnOrder(decreaseOrderId.trim());
+      const result = res.data?.data ?? res.data;
+      const count = result?.decreasedFoods?.length ?? 0;
+      toast.success(`Đã trừ kho thành công (${count} sản phẩm bị trừ).`);
+      setShowDecrease(false);
+      setDecreaseOrderId("");
+      await fetchFoods();
+      fetchBadgeCounts();
+    } catch (err) {
+      toast.error(err?.response?.data?.message ?? "Trừ kho thất bại.");
+    } finally {
+      setDecreasing(false);
     }
   };
 
@@ -197,10 +276,10 @@ const CentralKitchenInventory = () => {
     );
   });
 
-  /* ── Stats ── */
-  const total     = foods.length;
-  const available = foods.filter((f) => f.centralFoodStatus === "AVAILABLE").length;
-  const totalAmt  = foods.reduce((s, f) => s + (f.amount ?? 0), 0);
+  /* ── Stats (computed from filtered list when on a specific tab) ── */
+  const total     = filtered.length;
+  const available = filtered.filter((f) => f.centralFoodStatus === "AVAILABLE").length;
+  const totalAmt  = filtered.reduce((s, f) => s + (f.amount ?? 0), 0);
 
   /* ═══════════════════ RENDER ═══════════════════ */
   return (
@@ -221,11 +300,13 @@ const CentralKitchenInventory = () => {
       </div>
 
       {/* ── Stats ── */}
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         {[
-          { label: "Tổng sản phẩm", value: total,     variant: "stat-card-blue",   icon: Package     },
-          { label: "Còn hàng",      value: available,  variant: "stat-card-green",  icon: CheckCircle },
-          { label: "Tổng số lượng", value: totalAmt,   variant: "stat-card-purple", icon: Scale       },
+          { label: "Tổng sản phẩm",  value: total,             variant: "stat-card-blue",   icon: Package     },
+          { label: "Còn hàng",       value: available,          variant: "stat-card-green",  icon: CheckCircle },
+          { label: "Tổng số lượng",  value: totalAmt,           variant: "stat-card-purple", icon: Scale       },
+          { label: "Sắp hết hạn",    value: expiringSoonCount,  variant: "stat-card-orange", icon: Clock       },
+          { label: "Đã hết hạn",     value: expiredCount,       variant: "stat-card-red",    icon: ShieldAlert },
         ].map((s) => (
           <div key={s.label} className={`stat-card rounded-xl p-4 ${s.variant}`}>
             <div className="flex items-center justify-between">
@@ -241,7 +322,55 @@ const CentralKitchenInventory = () => {
         ))}
       </div>
 
-      {/* ── Search + Refresh ── */}
+      {/* ── Filter Tabs ── */}
+      <div className="flex items-center gap-1 flex-wrap bg-muted/30 rounded-xl p-1.5 border border-border">
+        {TABS.map((tab) => {
+          const Icon = tab.icon;
+          const isActive = activeTab === tab.key;
+          const badge = tab.key === "EXPIRING_SOON" ? expiringSoonCount
+                      : tab.key === "EXPIRED" ? expiredCount : null;
+          return (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition-all ${
+                isActive
+                  ? "bg-background shadow-sm border border-border text-foreground"
+                  : "text-muted-foreground hover:text-foreground hover:bg-background/50"
+              }`}
+            >
+              <Icon className={`w-3.5 h-3.5 ${isActive ? tab.color : ""}`} />
+              {tab.label}
+              {badge != null && badge > 0 && (
+                <span className={`ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold leading-none ${
+                  tab.key === "EXPIRED" ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700"
+                }`}>
+                  {badge}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* ── Expiring-soon days selector ── */}
+      {activeTab === "EXPIRING_SOON" && (
+        <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-amber-50 border border-amber-200">
+          <Clock className="w-4 h-4 text-amber-600 flex-shrink-0" />
+          <span className="text-sm text-amber-800 font-medium">Hiển thị thực phẩm hết hạn trong</span>
+          <select
+            value={expiringDays}
+            onChange={(e) => setExpiringDays(Number(e.target.value))}
+            className="um-input py-1 px-2 text-sm w-20"
+          >
+            {[3, 5, 7, 14, 30].map((d) => (
+              <option key={d} value={d}>{d} ngày</option>
+            ))}
+          </select>
+        </div>
+      )}
+
+      {/* ── Search + Actions ── */}
       <div className="flex items-center gap-3 flex-wrap">
         <div className="relative flex-1 min-w-48">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
@@ -254,12 +383,19 @@ const CentralKitchenInventory = () => {
           />
         </div>
         <button
-          onClick={fetchFoods}
+          onClick={() => { fetchFoods(); fetchBadgeCounts(); }}
           disabled={loading}
           className="flex items-center gap-2 px-4 py-2 rounded-lg border border-border bg-background text-foreground text-sm font-medium hover:bg-muted transition-colors disabled:opacity-60"
         >
           <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
           Làm mới
+        </button>
+        <button
+          onClick={() => setShowDecrease(true)}
+          className="flex items-center gap-2 px-4 py-2 rounded-lg border border-amber-300 bg-amber-50 text-amber-700 text-sm font-semibold hover:bg-amber-100 transition-colors"
+        >
+          <ArrowDownCircle className="w-4 h-4" />
+          Trừ kho theo đơn
         </button>
         <button
           onClick={openCreateForm}
@@ -458,6 +594,49 @@ const CentralKitchenInventory = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* ══════════════════ DECREASE STOCK MODAL ══════════════════ */}
+      {showDecrease && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => { setShowDecrease(false); setDecreaseOrderId(""); }} />
+          <div className="relative bg-background border border-border rounded-2xl shadow-2xl w-full max-w-md animate-fade-in">
+            <div className="px-6 py-4 border-b border-border flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <ArrowDownCircle className="w-5 h-5 text-amber-600" />
+                <h3 className="text-lg font-bold text-foreground">Trừ kho theo đơn hàng</h3>
+              </div>
+              <button onClick={() => { setShowDecrease(false); setDecreaseOrderId(""); }} className="p-2 rounded-lg hover:bg-muted transition-colors">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <form onSubmit={handleDecreaseStock} className="p-6 space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Nhập mã đơn hàng để tự động trừ số lượng tồn kho dựa trên các sản phẩm trong đơn.
+              </p>
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium text-foreground">Order ID <span className="text-destructive">*</span></label>
+                <input
+                  value={decreaseOrderId}
+                  onChange={(e) => setDecreaseOrderId(e.target.value)}
+                  placeholder="VD: ORD_001"
+                  className="um-input w-full"
+                  required
+                />
+              </div>
+              <div className="flex justify-end gap-3">
+                <button type="button" onClick={() => { setShowDecrease(false); setDecreaseOrderId(""); }} className="px-4 py-2.5 rounded-lg border border-border text-sm font-medium hover:bg-muted transition-colors">
+                  Hủy
+                </button>
+                <button type="submit" disabled={decreasing} className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-amber-600 text-white text-sm font-semibold hover:bg-amber-700 transition-colors disabled:opacity-60">
+                  {decreasing ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowDownCircle className="w-4 h-4" />}
+                  Trừ kho
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>,
+        document.body
       )}
 
       {/* ══════════════════ CREATE / EDIT FORM MODAL ══════════════════ */}
