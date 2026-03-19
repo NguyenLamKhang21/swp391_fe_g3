@@ -16,12 +16,12 @@ import MainLayout from "./MainLayout";
  */
 
 const adminNavItems = [
-  {
-    section: "Tổng quan",
-    items: [
-      { label: "Dashboard", icon: LayoutDashboard, to: "/admin" },
-    ],
-  },
+  // {
+  //   section: "Tổng quan",
+  //   items: [
+  //     { label: "Dashboard", icon: LayoutDashboard, to: "/admin" },
+  //   ],
+  // },
   {
     section: "Quản lý",
     items: [

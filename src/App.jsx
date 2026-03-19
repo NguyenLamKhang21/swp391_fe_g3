@@ -71,10 +71,10 @@ const App = () => (
         }
       >
         {/* /admin  → Dashboard (default / index page) */}
-        <Route index element={<AdminDashboard />} />
+        {/* <Route index element={<AdminDashboard />} /> */}
 
         {/* /admin/users  → User Management */}
-        <Route path="users"  element={<UserManagement />} />
+        <Route index path="users"  element={<UserManagement />} />
 
         {/* /admin/stores → Store Management */}
         <Route path="stores" element={<StoreManagement />} />

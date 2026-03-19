@@ -5,7 +5,7 @@ import {
   Building2, DollarSign, CreditCard, CheckCircle, XCircle, Plus,
 } from "lucide-react";
 import { toast } from "react-toastify";
-import { getAllStore, createNewFranchiseStore } from "../api/authAPI";
+import { getAllStore, createNewFranchiseStore, getProvinceId, getDistrictAddress, getWardAddress } from "../api/authAPI";
 
 /* ─── Debt Status Badge ─── */
 const DebtBadge = ({ deptStatus }) =>
@@ -37,12 +37,15 @@ const fmtRevenue = (n) => {
 
 //form cho tạo store mới
 const EMPTY_STORE_FORM = {
-  storeName: "",
-  address:   "",
-  province:  "",
-  district:  "",
-  ward:      "",
-  revenue:   "",
+  storeName:    "",
+  address:      "",
+  province:     "",   // name stored for payload
+  provinceId:   "",   // id used to fetch districts
+  district:     "",
+  districtId:   "",
+  ward:         "",
+  wardCode:     "",
+  revenue:      "",
 }
 
 /* ─── Store avatar ─── */
@@ -75,6 +78,14 @@ const StoreManagement = () => {
   const [storeForm, setStoreForm] = useState(EMPTY_STORE_FORM);
   const [creating, setCreating] = useState(false);
 
+  // ── Address cascade state ──
+  const [provinces,       setProvinces]       = useState([]);
+  const [districts,       setDistricts]       = useState([]);
+  const [wards,           setWards]           = useState([]);
+  const [loadingProvince, setLoadingProvince] = useState(false);
+  const [loadingDistrict, setLoadingDistrict] = useState(false);
+  const [loadingWard,     setLoadingWard]     = useState(false);
+
   /* ── Fetch ── */
   const fetchStores = async () => {
     setLoading(true);
@@ -94,6 +105,91 @@ const StoreManagement = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  /* ── Fetch provinces on mount ── */
+  useEffect(() => {
+    const load = async () => {
+      setLoadingProvince(true);
+      try {
+        const res = await getProvinceId();
+        const list = Array.isArray(res.data)
+          ? res.data
+          : Array.isArray(res.data?.data)
+            ? res.data.data
+            : [];
+        setProvinces(list);
+      } catch { /* silent – user can still type */ }
+      finally { setLoadingProvince(false); }
+    };
+    load();
+  }, []);
+
+  /* ── When province changes → fetch districts ── */
+  const handleProvinceChange = async (e) => {
+    const selectedId   = e.target.value;
+    const selectedName = e.target.options[e.target.selectedIndex]?.text ?? "";
+    // reset district + ward
+    setDistricts([]);
+    setWards([]);
+    setStoreForm((prev) => ({
+      ...prev,
+      provinceId: selectedId,
+      province:   selectedId ? selectedName : "",
+      districtId: "",
+      district:   "",
+      wardCode:   "",
+      ward:       "",
+    }));
+    if (!selectedId) return;
+    setLoadingDistrict(true);
+    try {
+      const res = await getDistrictAddress(selectedId);
+      const list = Array.isArray(res.data)
+        ? res.data
+        : Array.isArray(res.data?.data)
+          ? res.data.data
+          : [];
+      setDistricts(list);
+    } catch { toast.error("Could not load districts"); }
+    finally { setLoadingDistrict(false); }
+  };
+
+  /* ── When district changes → fetch wards ── */
+  const handleDistrictChange = async (e) => {
+    const selectedId   = e.target.value;
+    const selectedName = e.target.options[e.target.selectedIndex]?.text ?? "";
+    setWards([]);
+    setStoreForm((prev) => ({
+      ...prev,
+      districtId: selectedId,
+      district:   selectedId ? selectedName : "",
+      wardCode:   "",
+      ward:       "",
+    }));
+    if (!selectedId) return;
+    setLoadingWard(true);
+    try {
+      const res = await getWardAddress(selectedId);
+      const list = Array.isArray(res.data)
+        ? res.data
+        : Array.isArray(res.data?.data)
+          ? res.data.data
+          : [];
+      setWards(list);
+    } catch { toast.error("Could not load wards"); }
+    finally { setLoadingWard(false); }
+  };
+
+  /* ── Ward change ── */
+  const handleWardChange = (e) => {
+    const selectedCode = e.target.value;
+    const selectedName = e.target.options[e.target.selectedIndex]?.text ?? "";
+    setStoreForm((prev) => ({
+      ...prev,
+      wardCode: selectedCode,
+      ward:     selectedCode ? selectedName : "",
+    }));
   };
 
   /* ── Form handlers ── */
@@ -118,18 +214,28 @@ const StoreManagement = () => {
     try {
       setCreating(true);
 
-      // request body - revenue must be number, not string
+      // Backend contract (verified by error logs):
+      //   province → String  (GHN province NAME, validated by name)
+      //   district → Integer (GHN DistrictID)
+      //   ward     → String  (GHN WardCode)
       const payload = {
-        ...storeForm,
-        revenue: storeForm.revenue === "" ? 0 : Number(storeForm.revenue),
+        storeName: storeForm.storeName,
+        address:   storeForm.address,
+        province:  storeForm.province  || null,              // ← ProvinceName string
+        district:  storeForm.districtId ? Number(storeForm.districtId) : null, // ← Integer ID
+        ward:      storeForm.wardCode   || null,             // ← WardCode string
+        revenue:   storeForm.revenue === "" ? 0 : Number(storeForm.revenue),
       };
 
       const res = await createNewFranchiseStore(payload);
 
-      // check if res success
-      if (res.data?.statusCode === 0 || res.data?.data) {
+      // Axios only resolves for 2xx, so reaching here already means success.
+      // We double-check with res.status just in case, but res.data shape can vary.
+      if (res.status >= 200 && res.status < 300) {
         toast.success("Store created successfully!");
-        setStoreForm(EMPTY_STORE_FORM); // clear form after success
+        setStoreForm(EMPTY_STORE_FORM);
+        setDistricts([]);
+        setWards([]);
         fetchStores(); // refresh the table
       } else {
         toast.error(res.data?.message ?? "Failed to create store");
@@ -239,39 +345,86 @@ const StoreManagement = () => {
           {/* Province */}
           <div className="space-y-1.5">
             <label className="text-sm font-medium text-foreground" htmlFor="sm-province">
-              Province
+              Tỉnh / Thành phố
             </label>
             <div className="relative">
-              <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-              <input id="sm-province" name="province" value={storeForm.province}
-                onChange={handleStoreChange} placeholder="VD: TP. Hồ Chí Minh"
-                className="um-input pl-10" />
+              <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none z-10" />
+              <select
+                id="sm-province"
+                value={storeForm.provinceId}
+                onChange={handleProvinceChange}
+                disabled={loadingProvince}
+                className="um-input pl-10 appearance-none"
+              >
+                <option value="">
+                  {loadingProvince ? "Đang tải…" : "-- Chọn tỉnh / thành phố --"}
+                </option>
+                {provinces.map((p) => (
+                  <option key={p.ProvinceID} value={p.ProvinceID}>
+                    {p.ProvinceName}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
 
           {/* District */}
           <div className="space-y-1.5">
             <label className="text-sm font-medium text-foreground" htmlFor="sm-district">
-              District
+              Quận / Huyện
             </label>
             <div className="relative">
-              <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-              <input id="sm-district" name="district" value={storeForm.district}
-                onChange={handleStoreChange} placeholder="VD: Quận 1"
-                className="um-input pl-10" />
+              <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none z-10" />
+              <select
+                id="sm-district"
+                value={storeForm.districtId}
+                onChange={handleDistrictChange}
+                disabled={!storeForm.provinceId || loadingDistrict}
+                className="um-input pl-10 appearance-none disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <option value="">
+                  {loadingDistrict
+                    ? "Đang tải…"
+                    : !storeForm.provinceId
+                    ? "-- Chọn tỉnh trước --"
+                    : "-- Chọn quận / huyện --"}
+                </option>
+                {districts.map((d) => (
+                  <option key={d.DistrictID} value={d.DistrictID}>
+                    {d.DistrictName}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
 
           {/* Ward */}
           <div className="space-y-1.5">
             <label className="text-sm font-medium text-foreground" htmlFor="sm-ward">
-              Ward
+              Phường / Xã
             </label>
             <div className="relative">
-              <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-              <input id="sm-ward" name="ward" value={storeForm.ward}
-                onChange={handleStoreChange} placeholder="VD: Phường Bến Nghé"
-                className="um-input pl-10" />
+              <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none z-10" />
+              <select
+                id="sm-ward"
+                value={storeForm.wardCode}
+                onChange={handleWardChange}
+                disabled={!storeForm.districtId || loadingWard}
+                className="um-input pl-10 appearance-none disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <option value="">
+                  {loadingWard
+                    ? "Đang tải…"
+                    : !storeForm.districtId
+                    ? "-- Chọn quận trước --"
+                    : "-- Chọn phường / xã --"}
+                </option>
+                {wards.map((w) => (
+                  <option key={w.WardCode} value={w.WardCode}>
+                    {w.WardName}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
 
