@@ -146,6 +146,7 @@ const UserManagement = () => {
   };
 
   const getUserStore = (u) => {
+    if (u.franchiseStoreInfo) return u.franchiseStoreInfo;
     if (u.role !== "FRANCHISE_STAFF") return null;
     return storeMap[u.email?.toLowerCase()] ?? null;
   };
@@ -536,40 +537,34 @@ const UserManagement = () => {
                 ))}
               </div>
 
-              {/* Assigned Store (Franchise Staff only) */}
+              {/* Assigned Store */}
               {(() => {
                 const store = getUserStore(selectedUser);
-                if (selectedUser.role !== "FRANCHISE_STAFF") return null;
+                if (!store) return null;
                 return (
                   <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 space-y-2">
                     <div className="flex items-center gap-2">
                       <Store className="w-4 h-4 text-primary" />
                       <p className="text-sm font-semibold text-foreground">Cửa hàng được gán</p>
                     </div>
-                    {store ? (
-                      <div className="space-y-2 pl-6">
-                        <div>
-                          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Tên cửa hàng</p>
-                          <p className="text-sm font-medium text-foreground">{store.storeName}</p>
-                        </div>
-                        <div>
-                          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Store ID</p>
-                          <p className="text-sm font-mono text-foreground">{store.storeId}</p>
-                        </div>
-                        {store.address && (
-                          <div>
-                            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Địa chỉ</p>
-                            <p className="text-sm text-foreground">
-                              {[store.address, store.ward, store.district, store.province].filter(Boolean).join(", ")}
-                            </p>
-                          </div>
-                        )}
+                    <div className="space-y-2 pl-6">
+                      <div>
+                        <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Tên cửa hàng</p>
+                        <p className="text-sm font-medium text-foreground">{store.storeName}</p>
                       </div>
-                    ) : (
-                      <p className="text-sm text-muted-foreground pl-6 italic">
-                        Chưa được gán cửa hàng nào
-                      </p>
-                    )}
+                      <div>
+                        <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Store ID</p>
+                        <p className="text-sm font-mono text-foreground">{store.storeId}</p>
+                      </div>
+                      {store.address && (
+                        <div>
+                          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Địa chỉ</p>
+                          <p className="text-sm text-foreground">
+                            {[store.address, store.ward, store.district].filter(Boolean).join(", ")}
+                          </p>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 );
               })()}
