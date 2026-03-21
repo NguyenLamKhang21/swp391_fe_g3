@@ -34,6 +34,7 @@ const STATUS_CFG = {
   READY_TO_PICK:       { color: "text-blue-600",    bg: "bg-blue-50",    border: "border-blue-200",    icon: Truck         },
   IN_PROCESS:          { color: "text-purple-600",  bg: "bg-purple-50",  border: "border-purple-200",  icon: Loader2       },
   WAITING_FOR_UPDATE:  { color: "text-sky-600",     bg: "bg-sky-50",     border: "border-sky-200",     icon: MessageSquare },
+  WAITING_FOR_PRODUCTION:{color:"text-orange-500",  bg: "bg-orange-50",  border: "border-orange-200",  icon: AlertCircle   },
   DELIVERED:           { color: "text-green-600",   bg: "bg-green-50",   border: "border-green-200",   icon: CheckCircle   },
   REJECTED:            { color: "text-red-600",     bg: "bg-red-50",     border: "border-red-200",     icon: XCircle       },
   CANCELLED:           { color: "text-gray-500",    bg: "bg-gray-50",    border: "border-gray-200",    icon: XCircle       },
@@ -167,6 +168,17 @@ const OrderCard = ({ order, storeName, onRefresh }) => {
     } finally { setActionLoading(false); }
   };
 
+  const handleWaitingForProduction = async () => {
+    try {
+      setActionLoading(true);
+      await updateOrderStatus(order.orderId, "WAITING_FOR_PRODUCTION");
+      toast.success(`Đơn ${order.orderId} → Waiting for Production (đợi bếp nấu thêm).`);
+      onRefresh();
+    } catch (err) {
+      toast.error(err?.response?.data?.message ?? "Không thể cập nhật trạng thái.");
+    } finally { setActionLoading(false); }
+  };
+
   const handleDebtPayment = async () => {
     try {
       setActionLoading(true);
@@ -183,6 +195,15 @@ const OrderCard = ({ order, storeName, onRefresh }) => {
 
   const st = statusStyle(order.statusOrder);
   const StIcon = st.icon;
+
+  // check xem quantity trong order có quá ammount trong kho central food ko
+  const hasMissingFood = orderDetail?.items && centralFoods.length > 0
+    ? orderDetail.items.some((item) => {
+        const cf = centralFoods.find((f) => f.foodName === item.foodName);
+        const stock = cf ? Number(cf.amount || 0) : 0;
+        return Number(item.quantity) > stock;
+      })
+    : false;
 
   return (
     <div className="admin-card rounded-2xl overflow-hidden animate-fade-in border border-border">
@@ -480,6 +501,17 @@ const OrderCard = ({ order, storeName, onRefresh }) => {
                           >
                             {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <MessageSquare className="w-4 h-4" />}
                             Thiếu hàng — Deal với Store
+                          </button>
+                        )}
+
+                        {order.statusOrder === "PENDING" && hasMissingFood && (
+                          <button
+                            onClick={handleWaitingForProduction}
+                            disabled={actionLoading}
+                            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-orange-600 text-white text-sm font-semibold hover:bg-orange-700 transition-colors disabled:opacity-60"
+                          >
+                            {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <AlertCircle className="w-4 h-4" />}
+                            Đợi bếp nấu thêm
                           </button>
                         )}
 
