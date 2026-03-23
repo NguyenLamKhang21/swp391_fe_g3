@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { toast } from "react-toastify";
 import {
+  decreaseFoodBaseOnOrder,
   getAllOrders,
   getOrderById,
   getOrderDetailByOrderId,
@@ -26,34 +27,46 @@ import {
    Status helpers
    ═══════════════════════════════════════════════════════════════════════ */
 const STATUS_CFG = {
-  PENDING:             { color: "text-amber-600",   bg: "bg-amber-50",   border: "border-amber-200",   icon: Clock         },
-  APPROVED:            { color: "text-blue-600",    bg: "bg-blue-50",    border: "border-blue-200",    icon: CheckCircle   },
-  CONFIRMED:           { color: "text-blue-600",    bg: "bg-blue-50",    border: "border-blue-200",    icon: CheckCircle   },
-  COOKING:             { color: "text-orange-600",  bg: "bg-orange-50",  border: "border-orange-200",  icon: AlertCircle   },
-  COOKING_DONE:        { color: "text-emerald-600", bg: "bg-emerald-50", border: "border-emerald-200", icon: CheckCircle   },
-  READY_TO_PICK:       { color: "text-blue-600",    bg: "bg-blue-50",    border: "border-blue-200",    icon: Truck         },
-  IN_PROCESS:          { color: "text-purple-600",  bg: "bg-purple-50",  border: "border-purple-200",  icon: Loader2       },
-  WAITING_FOR_UPDATE:  { color: "text-sky-600",     bg: "bg-sky-50",     border: "border-sky-200",     icon: MessageSquare },
-  WAITING_FOR_PRODUCTION:{color:"text-orange-500",  bg: "bg-orange-50",  border: "border-orange-200",  icon: AlertCircle   },
-  DELIVERED:           { color: "text-green-600",   bg: "bg-green-50",   border: "border-green-200",   icon: CheckCircle   },
-  REJECTED:            { color: "text-red-600",     bg: "bg-red-50",     border: "border-red-200",     icon: XCircle       },
-  CANCELLED:           { color: "text-gray-500",    bg: "bg-gray-50",    border: "border-gray-200",    icon: XCircle       },
+  PENDING:               { color: "text-amber-600",   bg: "bg-amber-50",   border: "border-amber-200",   icon: Clock         },
+  APPROVED:              { color: "text-blue-600",    bg: "bg-blue-50",    border: "border-blue-200",    icon: CheckCircle   },
+  CONFIRMED:             { color: "text-blue-600",    bg: "bg-blue-50",    border: "border-blue-200",    icon: CheckCircle   },
+  COOKING:               { color: "text-orange-600",  bg: "bg-orange-50",  border: "border-orange-200",  icon: AlertCircle   },
+  IN_PROGRESS:           { color: "text-purple-600",  bg: "bg-purple-50",  border: "border-purple-200",  icon: Loader2       },
+  COOKING_DONE:          { color: "text-emerald-600", bg: "bg-emerald-50", border: "border-emerald-200", icon: CheckCircle   },
+  WAITING_FOR_UPDATE:    { color: "text-sky-600",     bg: "bg-sky-50",     border: "border-sky-200",     icon: MessageSquare },
+  WAITING_FOR_PRODUCTION:{ color: "text-orange-500",  bg: "bg-orange-50",  border: "border-orange-200",  icon: AlertCircle   },
+  READY_TO_PICK:         { color: "text-blue-600",    bg: "bg-blue-50",    border: "border-blue-200",    icon: Truck         },
+  PICKING:               { color: "text-indigo-600",  bg: "bg-indigo-50",  border: "border-indigo-200",  icon: Package       },
+  PICKED:                { color: "text-indigo-600",  bg: "bg-indigo-50",  border: "border-indigo-200",  icon: Package       },
+  DELIVERING:            { color: "text-blue-500",    bg: "bg-blue-50",    border: "border-blue-200",    icon: Truck         },
+  DELIVERED:             { color: "text-green-600",   bg: "bg-green-50",   border: "border-green-200",   icon: CheckCircle   },
+  DELIVERY_FAILED:       { color: "text-red-500",     bg: "bg-red-50",     border: "border-red-200",     icon: XCircle       },
+  WAITING_TO_RETURN:     { color: "text-orange-600",  bg: "bg-orange-50",  border: "border-orange-200",  icon: AlertCircle   },
+  RETURNED:              { color: "text-gray-600",    bg: "bg-gray-50",    border: "border-gray-200",    icon: CheckCircle   },
+  COMPLETED:             { color: "text-emerald-600", bg: "bg-emerald-50", border: "border-emerald-200", icon: CheckCircle   },
+  REJECTED:              { color: "text-red-600",     bg: "bg-red-50",     border: "border-red-200",     icon: XCircle       },
+  CANCELLED:             { color: "text-gray-500",    bg: "bg-gray-50",    border: "border-gray-200",    icon: XCircle       },
 };
 const statusStyle = (s) =>
   STATUS_CFG[s] ?? { color: "text-gray-600", bg: "bg-gray-50", border: "border-gray-200", icon: AlertCircle };
 
 const TABS = [
-  { key: "ALL",                label: "Tất cả" },
-  { key: "PENDING",            label: "Pending" },
-  { key: "WAITING_FOR_UPDATE", label: "Waiting" },
-  { key: "APPROVED",           label: "Approved" },
-  { key: "CONFIRMED",          label: "Confirmed" },
-  { key: "COOKING",            label: "Cooking" },
-  { key: "COOKING_DONE",       label: "Cooking Done" },
-  { key: "READY_TO_PICK",      label: "Ready To Pick" },
-  { key: "DELIVERED",          label: "Delivered" },
-  { key: "CANCELLED",          label: "Cancelled" },
-  { key: "REJECTED",           label: "Rejected" },
+  { key: "ALL",                    label: "Tất cả" },
+  { key: "PENDING",                label: "Pending" },
+  { key: "IN_PROGRESS",            label: "In Progress" },
+  { key: "CANCELLED",              label: "Cancelled" },
+  { key: "COMPLETED",              label: "Completed" },
+  { key: "COOKING_DONE",           label: "Cooking Done" },
+  { key: "WAITING_FOR_UPDATE",     label: "Waiting Update" },
+  { key: "WAITING_FOR_PRODUCTION", label: "Waiting Prod." },
+  { key: "READY_TO_PICK",          label: "Ready To Pick" },
+  { key: "PICKING",                label: "Picking" },
+  { key: "PICKED",                 label: "Picked" },
+  { key: "DELIVERING",             label: "Delivering" },
+  { key: "DELIVERED",              label: "Delivered" },
+  { key: "DELIVERY_FAILED",        label: "Delivery Failed" },
+  { key: "WAITING_TO_RETURN",      label: "Waiting Return" },
+  { key: "RETURNED",               label: "Returned" },
 ];
 
 /* ═══════════════════════════════════════════════════════════════════════
@@ -118,19 +131,44 @@ const OrderCard = ({ order, storeName, onRefresh }) => {
 
   const PRIORITY_LABELS = { 1: "HIGH", 2: "MEDIUM", 3: "LOW" };
 
+  const handleUpdatePriority = async () => {
+    try {
+      setActionLoading(true);
+      await updateOrderPriority(order.orderId, selectedPriority, priorityNote);
+      toast.success(`Đơn ${order.orderId} đã cập nhật Priority ${selectedPriority} - ${PRIORITY_LABELS[selectedPriority]}.`);
+      onRefresh();
+    } catch (err) {
+      toast.error(err?.response?.data?.message ?? "Không thể cập nhật priority.");
+    } finally { setActionLoading(false); }
+  };
+
   const handleConfirmOrder = async () => {
     try {
       setActionLoading(true);
       if (order.statusOrder === "WAITING_FOR_UPDATE") {
         await updateOrderPriority(order.orderId, selectedPriority, priorityNote);
         await updateOrderStatus(order.orderId, "COOKING_DONE");
+        toast.success(`Đơn ${order.orderId} đã xác nhận (Priority ${selectedPriority} - ${PRIORITY_LABELS[selectedPriority]}).`);
       } else {
+        // Old flow: confirmOrder sets status → IN_PROGRESS on the backend
         await confirmOrder(order.orderId, selectedPriority);
+        toast.success(`Đơn ${order.orderId} đã xác nhận (Priority ${selectedPriority} - ${PRIORITY_LABELS[selectedPriority]}) → IN_PROGRESS.`);
       }
-      toast.success(`Đơn ${order.orderId} đã xác nhận (Priority ${selectedPriority} - ${PRIORITY_LABELS[selectedPriority]}) → gửi tới Central Kitchen.`);
       onRefresh();
     } catch (err) {
       toast.error(err?.response?.data?.message ?? "Không thể xác nhận đơn hàng.");
+    } finally { setActionLoading(false); }
+  };
+
+  const handleReadyToPick = async () => {
+    try {
+      setActionLoading(true);
+      await decreaseFoodBaseOnOrder(order.orderId);
+      await updateOrderStatus(order.orderId, "READY_TO_PICK");
+      toast.success(`Đơn ${order.orderId} → READY_TO_PICK (đã trừ kho).`);
+      onRefresh();
+    } catch (err) {
+      toast.error(err?.response?.data?.message ?? "Không thể cập nhật trạng thái.");
     } finally { setActionLoading(false); }
   };
 
@@ -197,6 +235,8 @@ const OrderCard = ({ order, storeName, onRefresh }) => {
   const StIcon = st.icon;
 
   // check xem quantity trong order có quá ammount trong kho central food ko
+  // true  → some item qty > stock  → needs kitchen production
+  // false → all items within stock → can fulfill directly from warehouse
   const hasMissingFood = orderDetail?.items && centralFoods.length > 0
     ? orderDetail.items.some((item) => {
         const cf = centralFoods.find((f) => f.foodName === item.foodName);
@@ -482,6 +522,23 @@ const OrderCard = ({ order, storeName, onRefresh }) => {
                         </div>
                       </div>
 
+                      {/* Stock-sufficiency indicator */}
+                      {!hasMissingFood ? (
+                        <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-green-50 border border-green-200">
+                          <CheckCircle className="w-4 h-4 text-green-600 flex-shrink-0" />
+                          <p className="text-xs text-green-700 font-medium">
+                            Đủ hàng trong kho — có thể dùng <strong>Sẵn sàng giao</strong> để trừ kho và chuyển thẳng sang <strong>READY_TO_PICK</strong>, hoặc <strong>Xác nhận đơn</strong> để chuyển sang <strong>IN_PROGRESS</strong>.
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-50 border border-amber-200">
+                          <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0" />
+                          <p className="text-xs text-amber-700 font-medium">
+                            Thiếu hàng — một số mặt hàng vượt tồn kho. Xác nhận đơn sẽ chuyển sang <strong>IN_PROGRESS</strong> để bếp nấu thêm.
+                          </p>
+                        </div>
+                      )}
+
                       {/* Action buttons */}
                       <div className="flex flex-wrap gap-2">
                         <button
@@ -492,6 +549,17 @@ const OrderCard = ({ order, storeName, onRefresh }) => {
                           {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
                           Xác nhận đơn (Priority {selectedPriority})
                         </button>
+
+                        {!hasMissingFood && (
+                          <button
+                            onClick={handleReadyToPick}
+                            disabled={actionLoading}
+                            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-green-600 text-white text-sm font-semibold hover:bg-green-700 active:scale-[0.98] transition-all disabled:opacity-60"
+                          >
+                            {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Truck className="w-4 h-4" />}
+                            Sẵn sàng giao (Priority {selectedPriority})
+                          </button>
+                        )}
 
                         {order.statusOrder === "PENDING" && (
                           <button
@@ -504,14 +572,14 @@ const OrderCard = ({ order, storeName, onRefresh }) => {
                           </button>
                         )}
 
-                        {order.statusOrder === "PENDING" && hasMissingFood && (
+                        {hasMissingFood && (
                           <button
                             onClick={handleWaitingForProduction}
                             disabled={actionLoading}
                             className="flex items-center gap-2 px-4 py-2 rounded-lg bg-orange-600 text-white text-sm font-semibold hover:bg-orange-700 transition-colors disabled:opacity-60"
                           >
                             {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <AlertCircle className="w-4 h-4" />}
-                            Đợi bếp nấu thêm
+                            Đợi bếp nấu thêm → WAITING_FOR_PRODUCTION
                           </button>
                         )}
 
@@ -621,8 +689,61 @@ const OrderCard = ({ order, storeName, onRefresh }) => {
             </div>
           )}
 
-          {/* ── IN_PROGRESS / COOKING_DONE / READY_TO_PICK ── */}
-          {["IN_PROGRESS", "COOKING_DONE", "READY_TO_PICK"].includes(order.statusOrder) && (
+          {/* ── READY_TO_PICK: free priority update panel ── */}
+          {order.statusOrder === "READY_TO_PICK" && (
+            <div className="border border-blue-200 rounded-lg p-4 space-y-3 bg-blue-50/40">
+              <h4 className="text-xs font-semibold text-blue-800 flex items-center gap-1.5">
+                <ArrowRight className="w-3.5 h-3.5 text-blue-600" />
+                Cập nhật Priority — đơn đang READY_TO_PICK
+              </h4>
+              <div className="flex flex-wrap items-end gap-3">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Priority</label>
+                  <div className="flex gap-1.5">
+                    {[
+                      { value: 1, label: "1 — HIGH",   color: "border-red-400 bg-red-50 text-red-700" },
+                      { value: 2, label: "2 — MEDIUM", color: "border-amber-400 bg-amber-50 text-amber-700" },
+                      { value: 3, label: "3 — LOW",    color: "border-green-400 bg-green-50 text-green-700" },
+                    ].map((p) => (
+                      <button
+                        key={p.value}
+                        type="button"
+                        onClick={() => setSelectedPriority(p.value)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
+                          selectedPriority === p.value
+                            ? `${p.color} ring-2 ring-offset-1 ring-primary/30`
+                            : "border-border bg-muted/50 text-muted-foreground hover:border-primary/50"
+                        }`}
+                      >
+                        {p.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="flex-1 min-w-[140px] space-y-1">
+                  <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Ghi chú (tùy chọn)</label>
+                  <input
+                    type="text"
+                    placeholder="Ghi chú priority..."
+                    value={priorityNote}
+                    onChange={(e) => setPriorityNote(e.target.value)}
+                    className="um-input text-xs py-1.5"
+                  />
+                </div>
+              </div>
+              <button
+                onClick={handleUpdatePriority}
+                disabled={actionLoading}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition-colors disabled:opacity-60"
+              >
+                {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
+                Cập nhật Priority
+              </button>
+            </div>
+          )}
+
+          {/* ── IN_PROGRESS / COOKING_DONE ── */}
+          {["IN_PROGRESS", "COOKING_DONE"].includes(order.statusOrder) && (
             <div className="rounded-lg p-4 bg-red-50 border border-red-200">
               <div className="flex items-center gap-2">
                 <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0" />

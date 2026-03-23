@@ -1,4 +1,4 @@
-import { ClipboardList, Truck } from "lucide-react";
+import { BathIcon, BoxIcon, ClipboardList, Truck } from "lucide-react";
 import MainLayout from "./MainLayout";
 
 const supplyCoordinatorNavItems = [
@@ -6,7 +6,8 @@ const supplyCoordinatorNavItems = [
     section: "Quản lý",
     items: [
       { label: "Order Management", icon: ClipboardList, to: "/supply-coordinator/orders" },
-      { label: "Delivery Management", icon: Truck, to: "/supply-coordinator/delivery"}
+      { label: "Delivery Management", icon: Truck, to: "/supply-coordinator/delivery" },
+      { label: "Batch Management", icon: BoxIcon, to: "/supply-coordinator/batch"},
     ],
   },
 ];

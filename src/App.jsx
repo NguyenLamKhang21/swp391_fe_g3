@@ -19,6 +19,7 @@ import FranchiseDebtPayment from "./pages/FranchiseDebtPayment";
 import SupplyCoordinatorLayout from "./layouts/SupplyCoordinatorLayout";
 import SupplyCoordinatorOrders from "./pages/SupplyCoordinatorOrders";
 import SupplyDeliveryManagement from "./pages/SupplyDeliveryManagement";
+import SupplyBatchManagement from "./pages/SupplyBatchManagement";
 
 // Central Kitchen pages
 import CentralKitchenLayout from "./layouts/CentralKitchenLayout";
@@ -73,6 +74,9 @@ const App = () => (
         {/* /admin  → Dashboard (default / index page) */}
         {/* <Route index element={<AdminDashboard />} /> */}
 
+        {/* default khi vào admin  */}
+        <Route index element={<UserManagement />} />
+
         {/* /admin/users  → User Management */}
         <Route index path="users"  element={<UserManagement />} />
 
@@ -107,6 +111,7 @@ const App = () => (
         <Route index element={<SupplyCoordinatorOrders />} />
         <Route path="orders" element={<SupplyCoordinatorOrders />} />
         <Route path="delivery" element={<SupplyDeliveryManagement />} />
+        <Route path="batch" element={<SupplyBatchManagement />} />
       </Route>
 
       {/* ── Central Kitchen routes ─────────────────────────────────────── */}
