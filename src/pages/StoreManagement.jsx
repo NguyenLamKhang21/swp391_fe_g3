@@ -79,9 +79,6 @@ const StoreManagement = () => {
   const [storeForm, setStoreForm] = useState(EMPTY_STORE_FORM);
   const [creating, setCreating] = useState(false);
 
-  /* ── Detail modal ── */
-  const [selectedStore, setSelectedStore] = useState(null);
-
   /* ── Users + storeId map ── */
   const [usersByStore, setUsersByStore] = useState({}); // storeId → User[]
 
@@ -550,9 +547,9 @@ const StoreManagement = () => {
           </div>
         )}
 
-        {/* Table */}
+        {/* Store List */}
         {!loading && !fetchError && (
-          <div className="overflow-x-auto">
+          <div>
             {filtered.length === 0 ? (
               <div className="flex flex-col items-center gap-3 py-14 text-center">
                 <div className="w-14 h-14 rounded-full bg-muted flex items-center justify-center">
@@ -566,132 +563,121 @@ const StoreManagement = () => {
                 </p>
               </div>
             ) : (
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="admin-table-header">
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                      Cửa hàng
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider hidden md:table-cell">
-                      Địa chỉ
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider hidden sm:table-cell">
-                      Liên hệ
-                    </th>
-                    <th className="px-6 py-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider hidden lg:table-cell">
-                      Doanh thu
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider hidden xl:table-cell">
-                      Thanh toán
-                    </th>
-                    <th className="px-6 py-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                      Trạng thái nợ
-                    </th>
-                    <th className="px-6 py-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                      Hành Động
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {filtered.map((s, idx) => (
-                    <tr
+              <div className="flex flex-col gap-6 p-6 overflow-x-hidden">
+                {filtered.map((s, idx) => {
+                  const users = usersByStore[s.storeId] ?? [];
+                  return (
+                    <div
                       key={s.storeId ?? idx}
-                      className="admin-table-row"
-                      style={{ animationDelay: `${idx * 40}ms` }}
+                      className="rounded-2xl border border-border bg-muted/10 p-6 flex flex-col xl:flex-row gap-8 animate-fade-in"
+                      style={{ animationDelay: `${(idx % 10) * 40}ms` }}
                     >
-                      {/* Store name + ID */}
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
+                      {/* Left: Store Info */}
+                      <div className="flex-1 space-y-6">
+                        <div className="flex items-center gap-4">
                           <StoreAvatar name={s.storeName} />
                           <div className="min-w-0">
-                            <p className="font-medium text-foreground truncate">
-                              {s.storeName ?? "—"}
-                            </p>
-                            <p className="text-xs text-muted-foreground font-mono">
-                              {s.storeId ?? "—"}
-                            </p>
+                            <h3 className="text-lg font-bold text-foreground truncate">{s.storeName ?? "—"}</h3>
+                            <p className="text-sm text-muted-foreground font-mono truncate">{s.storeId ?? "—"}</p>
+                          </div>
+                          <div className="ml-auto shrink-0">
+                            <DebtBadge deptStatus={s.deptStatus} />
                           </div>
                         </div>
-                      </td>
 
-                      {/* Address — district + ward */}
-                      <td className="px-6 py-4 hidden md:table-cell max-w-[220px]">
-                        <div className="flex items-start gap-1.5">
-                          <MapPin className="w-3.5 h-3.5 mt-0.5 flex-shrink-0 text-primary/60" />
-                          <div className="min-w-0">
-                            <p className="truncate text-foreground">{s.address ?? "—"}</p>
-                            {(s.ward || s.district || s.province) && (
-                              <p className="text-xs text-muted-foreground truncate">
-                                {[s.ward, s.district, s.province].filter(Boolean).join(", ")}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      </td>
-
-                      {/* Contact: numberOfContact + managerEmail */}
-                      <td className="px-6 py-4 hidden sm:table-cell">
-                        <div className="space-y-1">
-                          {s.numberOfContact ? (
-                            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                              <Phone className="w-3 h-3 flex-shrink-0" />
-                              <span>{s.numberOfContact}</span>
-                            </div>
-                          ) : null}
-                          {s.managerEmail ? (
-                            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                              <Mail className="w-3 h-3 flex-shrink-0" />
-                              <span className="truncate max-w-[180px]">{s.managerEmail}</span>
-                            </div>
-                          ) : null}
-                          {!s.numberOfContact && !s.managerEmail && (
-                            <span className="text-muted-foreground text-xs">—</span>
-                          )}
-                        </div>
-                      </td>
-
-                      {/* Revenue */}
-                      <td className="px-6 py-4 text-right hidden lg:table-cell whitespace-nowrap">
-                        <span className="font-semibold text-foreground">
-                          {fmtRevenue(s.revenue)}
-                        </span>
-                      </td>
-
-                      {/* Payment methods */}
-                      <td className="px-6 py-4 hidden xl:table-cell">
-                        {s.paymentMethods?.length > 0 ? (
-                          <div className="flex flex-wrap gap-1">
-                            {s.paymentMethods.map((m) => (
-                              <PaymentPill key={m} method={m} />
+                        <div>
+                          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                            <Store className="w-4 h-4" /> Thông tin cửa hàng
+                          </p>
+                          <div className="grid grid-cols-2 gap-3">
+                            {[
+                              { label: "Tỉnh / TP",  value: s.province, wide: true },
+                              { label: "Địa chỉ",    value: s.address, wide: true },
+                              { label: "Quận",       value: s.district },
+                              { label: "Phường / Xã",value: s.ward },
+                              { label: "Liên hệ",    value: s.numberOfContact },
+                              { label: "Doanh thu",  value: fmtRevenue(s.revenue) },
+                            ].map(({ label, value, wide }) => (
+                              <div key={label} className={`bg-background shadow-sm rounded-xl border border-border/50 p-3 ${wide ? "col-span-2" : ""}`}>
+                                <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{label}</p>
+                                <p className="text-sm font-medium text-foreground mt-1 break-words">{value || "—"}</p>
+                              </div>
                             ))}
+                            <div className="col-span-2 bg-background shadow-sm border border-border/50 rounded-xl p-3">
+                              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Thanh toán</p>
+                              {s.paymentMethods?.length > 0 ? (
+                                <div className="flex flex-wrap gap-2">
+                                  {s.paymentMethods.map((m) => (
+                                    <PaymentPill key={m} method={m} />
+                                  ))}
+                                </div>
+                              ) : (
+                                <span className="text-sm text-muted-foreground">—</span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Right: Users inside Store */}
+                      <div className="flex-1 w-full xl:max-w-md">
+                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                          <User className="w-4 h-4" /> Nhân viên thuộc cửa hàng
+                        </p>
+                        
+                        {users.length === 0 ? (
+                          <div className="flex flex-col items-center gap-3 py-8 text-center border-2 border-dashed border-border rounded-xl bg-background/50">
+                            <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
+                              <User className="w-6 h-6 text-muted-foreground" />
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-foreground">Không có nhân viên</p>
+                              <p className="text-xs text-muted-foreground mt-0.5">Chưa có nhân viên nào được gán cho cửa hàng này.</p>
+                            </div>
                           </div>
                         ) : (
-                          <span className="text-xs text-muted-foreground">—</span>
+                          <div className="flex flex-col gap-3">
+                            {users.map((u) => (
+                              <div key={u.id} className="rounded-xl border border-border bg-background p-4 shadow-sm hover:border-primary/30 transition-colors">
+                                <div className="flex items-center gap-3 mb-3">
+                                  <div className="w-10 h-10 rounded-full admin-sidebar-brand flex items-center justify-center text-primary-foreground text-sm font-bold flex-shrink-0">
+                                    {(u.fullName ?? "?").charAt(0).toUpperCase()}
+                                  </div>
+                                  <div className="min-w-0 flex-1">
+                                    <p className="font-semibold text-foreground truncate text-sm">{u.fullName}</p>
+                                    <p className="text-xs text-muted-foreground truncate">{u.email}</p>
+                                  </div>
+                                  <span className={`shrink-0 inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-1 rounded-full border ${
+                                    u.active
+                                      ? "text-emerald-700 bg-emerald-100 border-emerald-200"
+                                      : "text-red-700 bg-red-100 border-red-200"
+                                  }`}>
+                                    {u.active ? <CheckCircle className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
+                                    {u.active ? "Active" : "Inactive"}
+                                  </span>
+                                </div>
+                                
+                                <div className="grid grid-cols-2 gap-2">
+                                  {[
+                                    { label: "User ID", value: u.id, wide: true },
+                                    { label: "Vai trò", value: u.role },
+                                    { label: "Điện thoại", value: u.phone },
+                                  ].map(({ label, value, wide }) => (
+                                    <div key={label} className={`bg-muted/30 rounded-lg p-2.5 ${wide ? "col-span-2" : ""}`}>
+                                      <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">{label}</p>
+                                      <p className="text-xs font-medium text-foreground mt-0.5 truncate font-mono">{value || "—"}</p>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
                         )}
-                      </td>
-
-                      {/* Debt status */}
-                      <td className="px-6 py-4 text-center">
-                        <DebtBadge deptStatus={s.deptStatus} />
-                      </td>
-
-                      {/* Hành Động */}
-                      <td className="px-6 py-4 text-center">
-                        <button
-                          id={`sm-detail-btn-${s.storeId}`}
-                          onClick={(e) => { e.stopPropagation(); setSelectedStore(s); }}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold
-                            bg-primary/10 text-primary border border-primary/20
-                            hover:bg-primary hover:text-primary-foreground transition-all duration-200"
-                        >
-                          <Info className="w-3.5 h-3.5" />
-                          Chi tiết
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             )}
           </div>
         )}
@@ -722,131 +708,6 @@ const StoreManagement = () => {
         .sm-badge-clear { color: #059669; background: #ecfdf5; border: 1px solid #a7f3d0; }
       `}</style>
 
-      {/* ══════════════════ STORE DETAIL MODAL ══════════════════ */}
-      {selectedStore && createPortal(
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setSelectedStore(null)} />
-
-          <div className="relative bg-background border border-border rounded-2xl shadow-2xl w-full max-w-lg animate-fade-in overflow-hidden">
-
-            {/* Header */}
-            <div className="px-6 py-4 border-b border-border flex items-center justify-between admin-sidebar-brand">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center text-white font-bold text-lg">
-                  {(selectedStore.storeName ?? "?").charAt(0).toUpperCase()}
-                </div>
-                <div>
-                  <h3 className="text-base font-bold text-white">{selectedStore.storeName}</h3>
-                  <p className="text-xs text-white/70 font-mono">{selectedStore.storeId}</p>
-                </div>
-              </div>
-              <button onClick={() => setSelectedStore(null)} className="p-2 rounded-lg hover:bg-white/20 transition-colors text-white">
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            {/* Body */}
-            <div className="p-6 space-y-5 max-h-[70vh] overflow-y-auto">
-
-              {/* ── Store Info ── */}
-              <div>
-                <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-1.5">
-                  <Store className="w-3.5 h-3.5" /> Thông tin cửa hàng
-                </p>
-                <div className="grid grid-cols-2 gap-3">
-                  {[
-                    { label: "Store ID",   value: selectedStore.storeId },
-                    { label: "Tỉnh / TP",  value: selectedStore.province },
-                    { label: "Địa chỉ",    value: selectedStore.address, wide: true },
-                    { label: "Quận",       value: selectedStore.district },
-                    { label: "Phường / Xã",value: selectedStore.ward },
-                    { label: "Liên hệ",    value: selectedStore.numberOfContact },
-                  ].map(({ label, value, wide }) => (
-                    <div key={label} className={`bg-muted/50 rounded-lg p-3 ${wide ? "col-span-2" : ""}`}>
-                      <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">{label}</p>
-                      <p className="text-sm font-medium text-foreground mt-0.5 break-all">{value ?? "—"}</p>
-                    </div>
-                  ))}
-                  <div className="col-span-2 bg-muted/50 rounded-lg p-3 flex items-center justify-between">
-                    <div>
-                      <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Trạng thái nợ</p>
-                    </div>
-                    <DebtBadge deptStatus={selectedStore.deptStatus} />
-                  </div>
-                </div>
-              </div>
-
-              {/* ── Users belonging to this store ── */}
-              <div>
-                <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-1.5">
-                  <User className="w-3.5 h-3.5" /> Nhân viên thuộc cửa hàng
-                </p>
-                {(() => {
-                  const users = usersByStore[selectedStore.storeId] ?? [];
-                  if (users.length === 0) {
-                    return (
-                      <div className="flex flex-col items-center gap-2 py-6 text-center">
-                        <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
-                          <User className="w-5 h-5 text-muted-foreground" />
-                        </div>
-                        <p className="text-sm text-muted-foreground">Chưa có nhân viên nào được gán.</p>
-                      </div>
-                    );
-                  }
-                  return (
-                    <div className="space-y-3">
-                      {users.map((u) => (
-                        <div key={u.id} className="rounded-xl border border-border bg-muted/30 p-4">
-                          <div className="flex items-center gap-3 mb-3">
-                            <div className="w-9 h-9 rounded-full admin-avatar flex items-center justify-center text-primary-foreground text-sm font-bold flex-shrink-0">
-                              {(u.fullName ?? "?").charAt(0).toUpperCase()}
-                            </div>
-                            <div className="min-w-0">
-                              <p className="font-semibold text-foreground truncate">{u.fullName}</p>
-                              <p className="text-xs text-muted-foreground truncate">{u.email}</p>
-                            </div>
-                            <span className={`ml-auto shrink-0 inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full border ${
-                              u.active
-                                ? "text-emerald-600 bg-emerald-50 border-emerald-200"
-                                : "text-red-500 bg-red-50 border-red-200"
-                            }`}>
-                              {u.active ? <CheckCircle className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
-                              {u.active ? "Active" : "Inactive"}
-                            </span>
-                          </div>
-                          <div className="grid grid-cols-2 gap-2 pl-0">
-                            {[
-                              { label: "User ID", value: u.id, wide: true },
-                              { label: "Vai trò", value: u.role },
-                              { label: "Điện thoại", value: u.phone },
-                            ].map(({ label, value, wide }) => (
-                              <div key={label} className={`bg-background rounded-lg p-2.5 ${wide ? "col-span-2" : ""}`}>
-                                <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">{label}</p>
-                                <p className="text-xs font-medium text-foreground mt-0.5 break-all font-mono">{value ?? "—"}</p>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  );
-                })()}
-              </div>
-            </div>
-
-            {/* Footer */}
-            <div className="px-6 py-4 border-t border-border flex justify-end">
-              <button
-                onClick={() => setSelectedStore(null)}
-                className="px-4 py-2.5 rounded-lg border border-border text-sm font-medium hover:bg-muted transition-colors"
-              >
-                Đóng
-              </button>
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
     </div>
   );
 };
