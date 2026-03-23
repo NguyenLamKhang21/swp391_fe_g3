@@ -23,6 +23,8 @@ import {
   getAllStore,
   getBatchesSuggestion,
   createBatches,
+  getAllBatches,
+  sendBatchesToKitchen,
 } from "../api/authAPI";
 
 /* ═══════════════════════════════════════════════════════════════════════
@@ -616,36 +618,57 @@ const SupplyBatchManagement = () => {
   };
   // ────────────────────────────────────────────────────────────────────────
 
-  const fetchOrders = useCallback(async () => {
+  // allBatches: fetched from GET /supply/batches/all
+  // shape per item: { batchId, batchDate, status, totalItems, totalTypes, note, createdAt, sentAt, items[] }
+  const [allBatches,    setAllBatches]    = useState([]);
+  const [batchLoading,  setBatchLoading]  = useState(true);
+  const [batchSearch,   setBatchSearch]   = useState("");
+
+  const fetchAllBatches = useCallback(async () => {
     try {
-      setLoading(true);
-      const res = await getOrderByStatus("WAITING_FOR_PRODUCTION");
+      setBatchLoading(true);
+      const res = await getAllBatches();
       const data = res.data?.data ?? res.data ?? [];
-      setOrders(Array.isArray(data) ? data : []);
+      setAllBatches(Array.isArray(data) ? data : []);
     } catch {
-      toast.error("Không thể tải danh sách đơn hàng.");
+      toast.error("Không thể tải danh sách lô hàng.");
     } finally {
-      setLoading(false);
+      setBatchLoading(false);
     }
   }, []);
 
-  useEffect(() => { fetchOrders(); }, [fetchOrders]);
+  useEffect(() => { fetchAllBatches(); }, [fetchAllBatches]);
 
-  const filtered = orders.filter((o) => {
-    const term = searchTerm.toLowerCase();
+  // Filter batches by batchId / batchDate / status
+  const filteredBatches = allBatches.filter((b) => {
+    const term = batchSearch.toLowerCase();
     return (
-      (o.orderId?.toLowerCase() ?? "").includes(term) ||
-      (o.storeId?.toLowerCase() ?? "").includes(term) ||
-      (storeName(o.storeId)?.toLowerCase() ?? "").includes(term)
+      (b.batchId?.toLowerCase()   ?? "").includes(term) ||
+      (b.batchDate?.toLowerCase() ?? "").includes(term) ||
+      (b.status?.toLowerCase()    ?? "").includes(term)
     );
   });
 
-  const stats = {
-    total:   orders.length,
-    paid:    orders.filter((o) => o.paymentStatus === "SUCCESS" || o.paymentStatus === "PAID").length,
-    pending: orders.filter((o) => o.paymentStatus === "PENDING").length,
-    credit:  orders.filter((o) => o.paymentMethod === "CREDIT").length,
+  const batchStats = {
+    total:      allBatches.length,
+    draft:      allBatches.filter((b) => b.status === "DRAFT").length,
+    sent:       allBatches.filter((b) => b.status === "SENT").length,
+    inProd:     allBatches.filter((b) => b.status === "IN_PRODUCTION").length,
+    completed:  allBatches.filter((b) => b.status === "PRODUCTION_COMPLETED").length,
+    cancelled:  allBatches.filter((b) => b.status === "CANCELLED").length,
   };
+
+  // Send a single DRAFT batch to the central kitchen
+  const handleSendBatch = async (batchId) => {
+    try {
+      await sendBatchesToKitchen(batchId);
+      toast.success(`Đã gửi lô ${batchId} đến bếp trung tâm!`);
+      fetchAllBatches(); // refresh list so status changes to SENT
+    } catch (err) {
+      toast.error(err?.response?.data?.message ?? "Không thể gửi lô hàng.");
+    }
+  };
+
 
   return (
     <div className="animate-fade-in space-y-6">
@@ -664,16 +687,18 @@ const SupplyBatchManagement = () => {
         </div>
       </div>
 
-      {/* ── Stats cards ── */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      {/* ── Stats cards — one tile per status ── */}
+      <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
         {[
-          { label: "Tổng đơn",        value: stats.total,   variant: "stat-card-blue" },
-          { label: "Đã thanh toán",   value: stats.paid,    variant: "stat-card-green" },
-          { label: "Chờ thanh toán",  value: stats.pending, variant: "stat-card-orange" },
-          { label: "Thẻ tín dụng",    value: stats.credit,  variant: "stat-card-purple" },
+          { label: "Tổng lô",          value: batchStats.total,     variant: "stat-card-blue"   },
+          { label: "DRAFT",           value: batchStats.draft,     variant: "stat-card-orange" },
+          { label: "SENT",            value: batchStats.sent,      variant: "stat-card-purple" },
+          { label: "IN PRODUCTION",   value: batchStats.inProd,    variant: "stat-card-blue"   },
+          { label: "COMPLETED",       value: batchStats.completed, variant: "stat-card-green"  },
+          { label: "CANCELLED",       value: batchStats.cancelled, variant: "stat-card-red" ?? "stat-card-orange" },
         ].map((s) => (
           <div key={s.label} className={`stat-card rounded-xl p-4 ${s.variant}`}>
-            <p className="text-xs text-muted-foreground font-medium">{s.label}</p>
+            <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">{s.label}</p>
             <p className="text-2xl font-bold text-foreground mt-1">{s.value}</p>
           </div>
         ))}
@@ -848,7 +873,7 @@ const SupplyBatchManagement = () => {
                     <div className="px-4 py-3 bg-emerald-50 border-b border-emerald-200 flex flex-wrap items-center justify-between gap-2">
                       <div>
                         {/* batchId — unique identifier for this production batch */}
-                        <p className="text-sm font-bold text-foreground">{batch.batchId}</p>
+                        <p className="text-sm font-bold text-foreground">Batch Id: {batch.batchId}</p>
                         {/* note — auto-generated description from backend */}
                         <p className="text-xs text-muted-foreground mt-0.5">{batch.note}</p>
                       </div>
@@ -915,59 +940,152 @@ const SupplyBatchManagement = () => {
         )}
       </div>
 
-      {/* ── Search + Refresh ── */}
+      {/* ── Batch list: Search + Refresh ── */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <p className="text-sm text-muted-foreground font-medium">
-          {!loading && `${filtered.length} đơn hàng`}
+          {!batchLoading && `${filteredBatches.length} lô hàng`}
         </p>
         <div className="flex items-center gap-3">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
             <input
               type="text"
-              placeholder="Tìm Order ID, Store..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="um-input pl-10 w-56"
+              placeholder="Tìm Batch ID, ngày, trạng thái..."
+              value={batchSearch}
+              onChange={(e) => setBatchSearch(e.target.value)}
+              className="um-input pl-10 w-64"
             />
           </div>
           <button
-            onClick={fetchOrders}
-            disabled={loading}
+            onClick={fetchAllBatches}
+            disabled={batchLoading}
             className="flex items-center gap-2 px-4 py-2 rounded-lg border border-border bg-background text-foreground text-sm font-medium hover:bg-muted transition-colors disabled:opacity-60"
           >
-            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+            <RefreshCw className={`w-4 h-4 ${batchLoading ? "animate-spin" : ""}`} />
             Làm mới
           </button>
         </div>
       </div>
 
-      {/* ── Order list ── */}
-      {loading ? (
+      {/* ── Batch list ── */}
+      {batchLoading ? (
         <div className="admin-card rounded-xl p-12 flex flex-col items-center gap-4">
           <Loader2 className="w-8 h-8 text-primary animate-spin" />
-          <p className="text-sm text-muted-foreground">Đang tải đơn hàng...</p>
+          <p className="text-sm text-muted-foreground">Đang tải danh sách lô hàng...</p>
         </div>
-      ) : filtered.length === 0 ? (
+      ) : filteredBatches.length === 0 ? (
         <div className="admin-card rounded-xl p-12 flex flex-col items-center gap-4 text-center">
           <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center">
-            <ClipboardList className="w-8 h-8 text-muted-foreground" />
+            <Package className="w-8 h-8 text-muted-foreground" />
           </div>
-          <p className="text-base font-semibold text-foreground">Không có đơn hàng nào</p>
+          <p className="text-base font-semibold text-foreground">Chưa có lô hàng nào</p>
           <p className="text-sm text-muted-foreground">
-            {searchTerm ? "Không tìm thấy kết quả phù hợp." : "Không có đơn hàng nào đang chờ sản xuất."}
+            {batchSearch ? "Không tìm thấy kết quả phù hợp." : "Hãy tạo lô hàng từ panel bên trên."}
           </p>
         </div>
       ) : (
-        <div className="space-y-5">
-          {filtered.map((o) => (
-            <OrderCard
-              key={o.orderId}
-              order={o}
-              storeName={storeName}
-              onRefresh={fetchOrders}
-            />
-          ))}
+        <div className="space-y-4">
+          {filteredBatches.map((batch) => {
+            // ── Per-status colour config ─────────────────────────────────────────────────
+            // Each status gets its own border, header bg, badge, qty pill, and icon.
+            const STATUS_CFG = {
+              DRAFT:                { border: "border-amber-200",   hdr: "bg-amber-50/60",   mini: "border-amber-100 bg-amber-50/30",   badge: "bg-amber-100 text-amber-700 border-amber-200",   qty: "bg-amber-100 text-amber-700",   icon: <Clock          className="w-3 h-3" /> },
+              SENT:                 { border: "border-blue-200",    hdr: "bg-blue-50/60",    mini: "border-blue-100 bg-blue-50/30",     badge: "bg-blue-100 text-blue-700 border-blue-200",     qty: "bg-blue-100 text-blue-700",     icon: <Truck          className="w-3 h-3" /> },
+              IN_PRODUCTION:        { border: "border-purple-200",  hdr: "bg-purple-50/60",  mini: "border-purple-100 bg-purple-50/30", badge: "bg-purple-100 text-purple-700 border-purple-200", qty: "bg-purple-100 text-purple-700",  icon: <Factory        className="w-3 h-3" /> },
+              PRODUCTION_COMPLETED: { border: "border-emerald-200", hdr: "bg-emerald-50/60", mini: "border-emerald-100 bg-emerald-50/30",badge: "bg-emerald-100 text-emerald-700 border-emerald-200", qty: "bg-emerald-100 text-emerald-700", icon: <CheckCircle    className="w-3 h-3" /> },
+              CANCELLED:            { border: "border-red-200",     hdr: "bg-red-50/60",     mini: "border-red-100 bg-red-50/30",       badge: "bg-red-100 text-red-700 border-red-200",         qty: "bg-red-100 text-red-700",       icon: <XCircle        className="w-3 h-3" /> },
+            };
+            // Fallback for unexpected statuses
+            const cfg = STATUS_CFG[batch.status] ?? STATUS_CFG.DRAFT;
+            const isDraft = batch.status === "DRAFT";
+            return (
+              <div
+                key={batch.batchId}
+                className={`admin-card rounded-xl border overflow-hidden ${cfg.border}`}
+              >
+                {/* ── Batch card header ── */}
+                <div className={`px-5 py-4 flex flex-wrap items-start justify-between gap-3 ${cfg.hdr}`}>
+                  <div className="min-w-0">
+                    <p className="text-sm font-bold text-foreground">Batch ID: {batch.batchId}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{batch.note}</p>
+                    {/* createdAt — when the batch record was first saved */}
+                    <p className="text-[10px] text-muted-foreground mt-1">
+                      Tạo lúc: {batch.createdAt ? new Date(batch.createdAt).toLocaleString("vi-VN") : "—"}
+                      {batch.sentAt && (
+                        <> · Gửi lúc: {new Date(batch.sentAt).toLocaleString("vi-VN")}</>
+                      )}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2 flex-shrink-0">
+                    {/* Status badge — colour driven by cfg */}
+                    <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full border ${cfg.badge}`}>
+                      {cfg.icon}
+                      {batch.status}
+                    </span>
+                    {/* batchDate label */}
+                    <span className="text-xs text-muted-foreground">{batch.batchDate}</span>
+                    {/* Send to kitchen button — only for DRAFT batches */}
+                    {isDraft && (
+                      <button
+                        onClick={() => handleSendBatch(batch.batchId)}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-semibold hover:opacity-90 active:scale-[0.98] transition-all"
+                      >
+                        <Truck className="w-3.5 h-3.5" />
+                        Gửi bếp
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* ── Mini stats: totalItems / totalTypes ── */}
+                <div className={`grid grid-cols-2 gap-2 px-5 py-3 border-b ${cfg.mini}`}>
+                  <div className="bg-white rounded-lg p-2 border border-border">
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Tổng mặt hàng</p>
+                    {/* totalItems = sum of all qty across food types in this batch */}
+                    <p className="text-lg font-bold text-foreground">{batch.totalItems}</p>
+                  </div>
+                  <div className="bg-white rounded-lg p-2 border border-border">
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Loại sản phẩm</p>
+                    {/* totalTypes = count of distinct food types */}
+                    <p className="text-lg font-bold text-foreground">{batch.totalTypes}</p>
+                  </div>
+                </div>
+
+                {/* ── Items table — one row per food type ── */}
+                {batch.items?.length > 0 && (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr className="admin-table-header">
+                          <th className="px-5 py-2 text-left font-semibold text-muted-foreground uppercase tracking-wide">Mã SP</th>
+                          <th className="px-5 py-2 text-left font-semibold text-muted-foreground uppercase tracking-wide">Tên sản phẩm</th>
+                          {/* totalQuantity = qty of this food needed in this batch */}
+                          <th className="px-5 py-2 text-center font-semibold text-muted-foreground uppercase tracking-wide">Số lượng</th>
+                          {/* sourceDetail = e.g. "STORE-D1-001: 20" */}
+                          <th className="px-5 py-2 text-left font-semibold text-muted-foreground uppercase tracking-wide">Nguồn đơn hàng</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border">
+                        {batch.items.map((item) => (
+                          <tr key={item.itemId} className="admin-table-row">
+                            <td className="px-5 py-2.5 font-mono text-xs text-muted-foreground">{item.centralFoodId}</td>
+                            <td className="px-5 py-2.5 font-medium text-foreground">{item.foodName}</td>
+                            <td className="px-5 py-2.5 text-center">
+                              {/* qty pill colour matches the batch status */}
+                              <span className={`inline-flex items-center justify-center px-2.5 py-0.5 rounded-full font-bold ${cfg.qty}`}>
+                                {item.totalQuantity}
+                              </span>
+                            </td>
+                            <td className="px-5 py-2.5 text-muted-foreground">{item.sourceDetail}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
     </div>

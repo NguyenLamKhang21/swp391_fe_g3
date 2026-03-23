@@ -110,4 +110,8 @@ export const getBatchesSuggestion = (date) => API.get(`/supply/preview`, { param
 // POST /supply/aggregate?date={date}
 // Creates production batches (status=DRAFT) from all WAITING_FOR_PRODUCTION orders on the given date.
 // Note: date is a QUERY param (not a request body), so we pass null as body and put params in config (3rd arg).
-export const createBatches = (date) => API.post(`/supply/aggregate`, null, { params: { date } });
+export const createBatches = (date) => API.post(`/supply/aggregate`, null, { params: { date } });
+
+export const sendBatchesToKitchen = (batchId) => API.post(`/supply/batches/${batchId}/send`);
+
+export const getAllBatches = () => API.get(`/supply/batches/all`);
