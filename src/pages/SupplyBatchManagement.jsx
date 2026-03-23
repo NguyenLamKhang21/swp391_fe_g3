@@ -11,6 +11,7 @@ import {
   createBatches,
   getAllBatches,
   sendBatchesToKitchen,
+  reAggregateBatches,
 } from "../api/authAPI";
 
 /* ═══════════════════════════════════════════════════════════════════════
@@ -78,6 +79,9 @@ const SupplyBatchManagement = () => {
   // createLoading: true while the POST /supply/aggregate request is in-flight
   const [createLoading, setCreateLoading] = useState(false);
 
+  // reaggLoading: true while the POST /supply/re-aggregate request is in-flight
+  const [reaggLoading, setReaggLoading] = useState(false);
+
   /**
    * handleCreateBatches — POST /supply/aggregate?date={suggDate}
    *
@@ -108,6 +112,31 @@ const SupplyBatchManagement = () => {
       toast.error(err?.response?.data?.message ?? "Không thể tạo lô hàng.");
     } finally {
       setCreateLoading(false);
+    }
+  };
+
+  /**
+   * handleReAggregate — POST /supply/re-aggregate?date={suggDate}
+   *
+   * Deletes all existing DRAFT batches for the chosen date and re-creates
+   * them from scratch based on current WAITING_FOR_PRODUCTION orders.
+   * Use this when you need to refresh a batch after orders have changed.
+   */
+  const handleReAggregate = async () => {
+    if (!suggDate) { toast.warn("Vui lòng chọn ngày."); return; }
+    try {
+      setReaggLoading(true);
+      setCreatedBatches([]);
+      const res = await reAggregateBatches(suggDate);
+      const batches = res.data?.data ?? res.data ?? [];
+      const list = Array.isArray(batches) ? batches : [batches];
+      setCreatedBatches(list);
+      toast.success(`Tổng hợp lại thành công ${list.length} lô hàng!`);
+      fetchAllBatches();
+    } catch (err) {
+      toast.error(err?.response?.data?.message ?? "Không thể tổng hợp lại lô hàng.");
+    } finally {
+      setReaggLoading(false);
     }
   };
   // ────────────────────────────────────────────────────────────────────────
@@ -251,7 +280,7 @@ const SupplyBatchManagement = () => {
               {/* Create button — POST /supply/aggregate (actually writes batches to DB as DRAFT) */}
               <button
                 onClick={handleCreateBatches}
-                disabled={createLoading || suggLoading}
+                disabled={createLoading || suggLoading || reaggLoading}
                 className="flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 active:scale-[0.98] transition-all disabled:opacity-60"
               >
                 {createLoading
@@ -259,6 +288,28 @@ const SupplyBatchManagement = () => {
                   : <PlusCircle className="w-4 h-4" />}
                 Tạo lô sản xuất
               </button>
+
+              {/* Re-aggregate button — POST /supply/re-aggregate (deletes DRAFTs then re-creates) */}
+              <button
+                onClick={handleReAggregate}
+                disabled={reaggLoading || suggLoading || createLoading}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-amber-600 text-white text-sm font-semibold hover:bg-amber-700 active:scale-[0.98] transition-all disabled:opacity-60"
+              >
+                {reaggLoading
+                  ? <Loader2   className="w-4 h-4 animate-spin" />
+                  : <RefreshCw className="w-4 h-4" />}
+                Tổng hợp lại
+              </button>
+            </div>
+
+            {/* Warning callout — always visible to remind user this action is destructive */}
+            <div className="flex items-start gap-2 px-3 py-2.5 rounded-lg bg-amber-50 border border-amber-200">
+              <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
+              <p className="text-xs text-amber-800">
+                <strong>Tổng hợp lại</strong> sẽ xóa tất cả batch <strong>DRAFT</strong> hiện có cho ngày đã chọn
+                và tạo lại từ đầu dựa trên các đơn hàng <strong>WAITING_FOR_PRODUCTION</strong> hiện tại.
+                Hành động này không ảnh hưởng đến batch đã được gửi (SENT) hoặc đang sản xuất.
+              </p>
             </div>
 
             {/* ── Loading spinner ── */}
@@ -336,11 +387,13 @@ const SupplyBatchManagement = () => {
               </div>
             )}
 
-            {/* ── Loading spinner for Create Batches ── */}
-            {createLoading && (
+            {/* ── Loading spinner for Create Batches / Re-aggregate ── */}
+            {(createLoading || reaggLoading) && (
               <div className="flex items-center gap-3 py-4">
-                <Loader2 className="w-5 h-5 text-emerald-600 animate-spin" />
-                <p className="text-sm text-muted-foreground">Đang tạo lô hàng...</p>
+                <Loader2 className={`w-5 h-5 animate-spin ${reaggLoading ? "text-amber-600" : "text-emerald-600"}`} />
+                <p className="text-sm text-muted-foreground">
+                  {reaggLoading ? "Đang tổng hợp lại lô hàng..." : "Đang tạo lô hàng..."}
+                </p>
               </div>
             )}
 
