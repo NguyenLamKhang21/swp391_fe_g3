@@ -1,11 +1,13 @@
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import {
   Store, RefreshCw, Search, AlertTriangle,
   Loader2, MapPin, Phone, Mail, Shield,
   Building2, DollarSign, CreditCard, CheckCircle, XCircle, Plus,
+  X, User, Hash, Info,
 } from "lucide-react";
 import { toast } from "react-toastify";
-import { getAllStore, createNewFranchiseStore, getProvinceId, getDistrictAddress, getWardAddress } from "../api/authAPI";
+import { getAllStore, getAllUsers, createNewFranchiseStore, getProvinceId, getDistrictAddress, getWardAddress } from "../api/authAPI";
 
 /* ─── Debt Status Badge ─── */
 const DebtBadge = ({ deptStatus }) =>
@@ -45,7 +47,6 @@ const EMPTY_STORE_FORM = {
   districtId:   "",
   ward:         "",
   wardCode:     "",
-  revenue:      "",
 }
 
 /* ─── Store avatar ─── */
@@ -78,6 +79,9 @@ const StoreManagement = () => {
   const [storeForm, setStoreForm] = useState(EMPTY_STORE_FORM);
   const [creating, setCreating] = useState(false);
 
+  /* ── Users + storeId map ── */
+  const [usersByStore, setUsersByStore] = useState({}); // storeId → User[]
+
   // ── Address cascade state ──
   const [provinces,       setProvinces]       = useState([]);
   const [districts,       setDistricts]       = useState([]);
@@ -86,7 +90,7 @@ const StoreManagement = () => {
   const [loadingDistrict, setLoadingDistrict] = useState(false);
   const [loadingWard,     setLoadingWard]     = useState(false);
 
-  /* ── Fetch ── */
+  /* ── Fetch stores ── */
   const fetchStores = async () => {
     setLoading(true);
     setFetchError(null);
@@ -105,6 +109,28 @@ const StoreManagement = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  /* ── Fetch users → build storeId map ── */
+  const fetchUsers = async () => {
+    try {
+      const res = await getAllUsers();
+      const list = Array.isArray(res.data)
+        ? res.data
+        : Array.isArray(res.data?.data)
+          ? res.data.data
+          : [];
+      // Group users by the storeId stored in franchiseStoreInfo
+      const map = {};
+      list.forEach((u) => {
+        const sid = u.franchiseStoreInfo?.storeId;
+        if (sid) {
+          if (!map[sid]) map[sid] = [];
+          map[sid].push(u);
+        }
+      });
+      setUsersByStore(map);
+    } catch { /* silent */ }
   };
 
   /* ── Fetch provinces on mount ── */
@@ -224,7 +250,6 @@ const StoreManagement = () => {
         province:  storeForm.province  || null,              // ← ProvinceName string
         district:  storeForm.districtId ? Number(storeForm.districtId) : null, // ← Integer ID
         ward:      storeForm.wardCode   || null,             // ← WardCode string
-        revenue:   storeForm.revenue === "" ? 0 : Number(storeForm.revenue),
       };
 
       const res = await createNewFranchiseStore(payload);
@@ -247,7 +272,7 @@ const StoreManagement = () => {
     }
   };
 
-  useEffect(() => { fetchStores(); }, []);
+  useEffect(() => { fetchStores(); fetchUsers(); }, []);
 
   /* ── Derived stats ── */
   const total        = stores.length;
@@ -428,19 +453,6 @@ const StoreManagement = () => {
             </div>
           </div>
 
-          {/* Revenue */}
-          <div className="space-y-1.5 md:col-span-2">
-            <label className="text-sm font-medium text-foreground" htmlFor="sm-revenue">
-              Initial Revenue (VND)
-            </label>
-            <div className="relative">
-              <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-              <input id="sm-revenue" name="revenue" type="number" min="0"
-                value={storeForm.revenue} onChange={handleStoreChange}
-                placeholder="0" className="um-input pl-10" />
-            </div>
-          </div>
-
           {/* Submit */}
           <div className="md:col-span-2 flex justify-end pt-2">
             <button type="submit" disabled={creating}
@@ -535,9 +547,9 @@ const StoreManagement = () => {
           </div>
         )}
 
-        {/* Table */}
+        {/* Store List */}
         {!loading && !fetchError && (
-          <div className="overflow-x-auto">
+          <div>
             {filtered.length === 0 ? (
               <div className="flex flex-col items-center gap-3 py-14 text-center">
                 <div className="w-14 h-14 rounded-full bg-muted flex items-center justify-center">
@@ -551,115 +563,121 @@ const StoreManagement = () => {
                 </p>
               </div>
             ) : (
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="admin-table-header">
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                      Cửa hàng
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider hidden md:table-cell">
-                      Địa chỉ
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider hidden sm:table-cell">
-                      Liên hệ
-                    </th>
-                    <th className="px-6 py-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider hidden lg:table-cell">
-                      Doanh thu
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider hidden xl:table-cell">
-                      Thanh toán
-                    </th>
-                    <th className="px-6 py-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                      Trạng thái nợ
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {filtered.map((s, idx) => (
-                    <tr
+              <div className="flex flex-col gap-6 p-6 overflow-x-hidden">
+                {filtered.map((s, idx) => {
+                  const users = usersByStore[s.storeId] ?? [];
+                  return (
+                    <div
                       key={s.storeId ?? idx}
-                      className="admin-table-row"
-                      style={{ animationDelay: `${idx * 40}ms` }}
+                      className="rounded-2xl border border-border bg-muted/10 p-6 flex flex-col xl:flex-row gap-8 animate-fade-in"
+                      style={{ animationDelay: `${(idx % 10) * 40}ms` }}
                     >
-                      {/* Store name + ID */}
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
+                      {/* Left: Store Info */}
+                      <div className="flex-1 space-y-6">
+                        <div className="flex items-center gap-4">
                           <StoreAvatar name={s.storeName} />
                           <div className="min-w-0">
-                            <p className="font-medium text-foreground truncate">
-                              {s.storeName ?? "—"}
-                            </p>
-                            <p className="text-xs text-muted-foreground font-mono">
-                              {s.storeId ?? "—"}
-                            </p>
+                            <h3 className="text-lg font-bold text-foreground truncate">{s.storeName ?? "—"}</h3>
+                            <p className="text-sm text-muted-foreground font-mono truncate">{s.storeId ?? "—"}</p>
+                          </div>
+                          <div className="ml-auto shrink-0">
+                            <DebtBadge deptStatus={s.deptStatus} />
                           </div>
                         </div>
-                      </td>
 
-                      {/* Address — district + ward */}
-                      <td className="px-6 py-4 hidden md:table-cell max-w-[220px]">
-                        <div className="flex items-start gap-1.5">
-                          <MapPin className="w-3.5 h-3.5 mt-0.5 flex-shrink-0 text-primary/60" />
-                          <div className="min-w-0">
-                            <p className="truncate text-foreground">{s.address ?? "—"}</p>
-                            {(s.ward || s.district || s.province) && (
-                              <p className="text-xs text-muted-foreground truncate">
-                                {[s.ward, s.district, s.province].filter(Boolean).join(", ")}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      </td>
-
-                      {/* Contact: numberOfContact + managerEmail */}
-                      <td className="px-6 py-4 hidden sm:table-cell">
-                        <div className="space-y-1">
-                          {s.numberOfContact ? (
-                            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                              <Phone className="w-3 h-3 flex-shrink-0" />
-                              <span>{s.numberOfContact}</span>
-                            </div>
-                          ) : null}
-                          {s.managerEmail ? (
-                            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                              <Mail className="w-3 h-3 flex-shrink-0" />
-                              <span className="truncate max-w-[180px]">{s.managerEmail}</span>
-                            </div>
-                          ) : null}
-                          {!s.numberOfContact && !s.managerEmail && (
-                            <span className="text-muted-foreground text-xs">—</span>
-                          )}
-                        </div>
-                      </td>
-
-                      {/* Revenue */}
-                      <td className="px-6 py-4 text-right hidden lg:table-cell whitespace-nowrap">
-                        <span className="font-semibold text-foreground">
-                          {fmtRevenue(s.revenue)}
-                        </span>
-                      </td>
-
-                      {/* Payment methods */}
-                      <td className="px-6 py-4 hidden xl:table-cell">
-                        {s.paymentMethods?.length > 0 ? (
-                          <div className="flex flex-wrap gap-1">
-                            {s.paymentMethods.map((m) => (
-                              <PaymentPill key={m} method={m} />
+                        <div>
+                          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                            <Store className="w-4 h-4" /> Thông tin cửa hàng
+                          </p>
+                          <div className="grid grid-cols-2 gap-3">
+                            {[
+                              { label: "Tỉnh / TP",  value: s.province, wide: true },
+                              { label: "Địa chỉ",    value: s.address, wide: true },
+                              { label: "Quận",       value: s.district },
+                              { label: "Phường / Xã",value: s.ward },
+                              { label: "Liên hệ",    value: s.numberOfContact },
+                              { label: "Doanh thu",  value: fmtRevenue(s.revenue) },
+                            ].map(({ label, value, wide }) => (
+                              <div key={label} className={`bg-background shadow-sm rounded-xl border border-border/50 p-3 ${wide ? "col-span-2" : ""}`}>
+                                <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{label}</p>
+                                <p className="text-sm font-medium text-foreground mt-1 break-words">{value || "—"}</p>
+                              </div>
                             ))}
+                            <div className="col-span-2 bg-background shadow-sm border border-border/50 rounded-xl p-3">
+                              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Thanh toán</p>
+                              {s.paymentMethods?.length > 0 ? (
+                                <div className="flex flex-wrap gap-2">
+                                  {s.paymentMethods.map((m) => (
+                                    <PaymentPill key={m} method={m} />
+                                  ))}
+                                </div>
+                              ) : (
+                                <span className="text-sm text-muted-foreground">—</span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Right: Users inside Store */}
+                      <div className="flex-1 w-full xl:max-w-md">
+                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                          <User className="w-4 h-4" /> Nhân viên thuộc cửa hàng
+                        </p>
+                        
+                        {users.length === 0 ? (
+                          <div className="flex flex-col items-center gap-3 py-8 text-center border-2 border-dashed border-border rounded-xl bg-background/50">
+                            <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
+                              <User className="w-6 h-6 text-muted-foreground" />
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-foreground">Không có nhân viên</p>
+                              <p className="text-xs text-muted-foreground mt-0.5">Chưa có nhân viên nào được gán cho cửa hàng này.</p>
+                            </div>
                           </div>
                         ) : (
-                          <span className="text-xs text-muted-foreground">—</span>
+                          <div className="flex flex-col gap-3">
+                            {users.map((u) => (
+                              <div key={u.id} className="rounded-xl border border-border bg-background p-4 shadow-sm hover:border-primary/30 transition-colors">
+                                <div className="flex items-center gap-3 mb-3">
+                                  <div className="w-10 h-10 rounded-full admin-sidebar-brand flex items-center justify-center text-primary-foreground text-sm font-bold flex-shrink-0">
+                                    {(u.fullName ?? "?").charAt(0).toUpperCase()}
+                                  </div>
+                                  <div className="min-w-0 flex-1">
+                                    <p className="font-semibold text-foreground truncate text-sm">{u.fullName}</p>
+                                    <p className="text-xs text-muted-foreground truncate">{u.email}</p>
+                                  </div>
+                                  <span className={`shrink-0 inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-1 rounded-full border ${
+                                    u.active
+                                      ? "text-emerald-700 bg-emerald-100 border-emerald-200"
+                                      : "text-red-700 bg-red-100 border-red-200"
+                                  }`}>
+                                    {u.active ? <CheckCircle className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
+                                    {u.active ? "Active" : "Inactive"}
+                                  </span>
+                                </div>
+                                
+                                <div className="grid grid-cols-2 gap-2">
+                                  {[
+                                    { label: "User ID", value: u.id, wide: true },
+                                    { label: "Vai trò", value: u.role },
+                                    { label: "Điện thoại", value: u.phone },
+                                  ].map(({ label, value, wide }) => (
+                                    <div key={label} className={`bg-muted/30 rounded-lg p-2.5 ${wide ? "col-span-2" : ""}`}>
+                                      <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">{label}</p>
+                                      <p className="text-xs font-medium text-foreground mt-0.5 truncate font-mono">{value || "—"}</p>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
                         )}
-                      </td>
-
-                      {/* Debt status */}
-                      <td className="px-6 py-4 text-center">
-                        <DebtBadge deptStatus={s.deptStatus} />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             )}
           </div>
         )}
@@ -689,6 +707,7 @@ const StoreManagement = () => {
         .sm-badge-debt  { color: #ef4444; background: #fef2f2; border: 1px solid #fecaca; }
         .sm-badge-clear { color: #059669; background: #ecfdf5; border: 1px solid #a7f3d0; }
       `}</style>
+
     </div>
   );
 };

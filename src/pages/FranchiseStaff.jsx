@@ -163,10 +163,23 @@ const FranchiseStaff = () => {
     });
   };
 
+
+  //giới hạn số lượng món ăn là 20
   const updateItem = (index, field, value) => {
-    setOrderItems((prev) => prev.map((item, i) =>
-      i === index ? { ...item, [field]: field === "quantity" ? Number(value) : value } : item
-    ));
+    setOrderItems((prev) => prev.map((item, i) => {
+      if (i !== index) return item;
+      let v = value;
+      if (field === "quantity") {
+        if (value === "") {
+          v = ""; // let user clear the field to type new numbers
+        } else {
+          v = Number(value);
+          if (v > 20) v = 20;
+          if (v < 1 && value !== "") v = 1; // enforce min=1 if they type 0
+        }
+      }
+      return { ...item, [field]: v };
+    }));
   };
 
   const addItem = () => setOrderItems((prev) => [...prev, { ...EMPTY_ITEM }]);
@@ -341,7 +354,6 @@ const FranchiseStaff = () => {
           </div>
           <div>
             <h3 className="text-base font-semibold text-foreground">New Order</h3>
-            <p className="text-xs text-muted-foreground">Calls POST /orders</p>
           </div>
         </div>
 
@@ -409,6 +421,7 @@ const FranchiseStaff = () => {
                       <input
                         type="number"
                         min="1"
+                        max={20}
                         value={item.quantity}
                         onChange={(e) => updateItem(idx, "quantity", e.target.value)}
                         className="um-input pl-10 w-full"
