@@ -80,12 +80,9 @@ const SupplyDeliveryManagement = () => {
   // Delivery Form States
   const [deliveryData, setDeliveryData] = useState({
     payment_type_id: 2,
-    note: "Deliver during office hours",
-    required_note: "CHOTHUHANG",
+    note: "",
     to_name: "",
     to_phone: "",
-    cod_amount: 0,
-    service_type_id: 2,
   });
   const [submittingDelivery, setSubmittingDelivery] = useState(false);
   const [deliverySuccess, setDeliverySuccess] = useState(null);
@@ -97,12 +94,9 @@ const SupplyDeliveryManagement = () => {
     setDeliveryError(null);
     setDeliveryData({
       payment_type_id: 2,
-      note: "Deliver during office hours",
-      required_note: "CHOTHUHANG",
+      note: "",
       to_name: "",
       to_phone: "",
-      cod_amount: order?.orderDetail?.amount || 0,
-      service_type_id: 2,
     });
   };
 
@@ -115,10 +109,10 @@ const SupplyDeliveryManagement = () => {
     setDeliverySuccess(null);
     try {
       const payload = {
-        ...deliveryData,
         payment_type_id: Number(deliveryData.payment_type_id),
-        cod_amount: Number(deliveryData.cod_amount),
-        service_type_id: Number(deliveryData.service_type_id),
+        note: deliveryData.note,
+        to_name: deliveryData.to_name,
+        to_phone: deliveryData.to_phone,
         storeId: selectedOrder?.storeId,
         orderDetailId: selectedOrder?.orderDetail?.orderDetailId || "",
       };
@@ -320,7 +314,7 @@ const SupplyDeliveryManagement = () => {
                         </span>
                       </td>
                       <td className="px-6 py-4 text-muted-foreground whitespace-nowrap">
-                        {order.orderDate ? new Date(order.orderDate).toLocaleString() : "N/A"}
+                        {order.orderDate ? new Date(order.orderDate).toLocaleDateString() : "N/A"}
                       </td>
                       <td className="px-6 py-4 text-center">
                         <button
@@ -466,7 +460,7 @@ const SupplyDeliveryManagement = () => {
                   { label: "Order Status",   value: selectedOrder.statusOrder },
                   { label: "Payment Status", value: selectedOrder.paymentStatus ?? "—" },
                   { label: "Priority Level", value: selectedOrder.priorityLevel ?? "—" },
-                  { label: "Ngày đặt",       value: selectedOrder.orderDate ? new Date(selectedOrder.orderDate).toLocaleString() : "—" },
+                  { label: "Ngày đặt",       value: selectedOrder.orderDate ? new Date(selectedOrder.orderDate).toLocaleDateString() : "—" },
                 ].map((f) => (
                   <div key={f.label} className="bg-muted/50 rounded-lg p-2">
                     <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">{f.label}</p>
@@ -560,10 +554,6 @@ const SupplyDeliveryManagement = () => {
 
                       {/* Cột 2 */}
                       <div className="space-y-1.5 flex flex-col justify-end">
-                        <label className="text-xs font-semibold text-foreground">Tiền thu hộ / COD (cod_amount)</label>
-                        <input type="number" name="cod_amount" required value={deliveryData.cod_amount} onChange={handleDeliveryInputChange} className="w-full text-sm rounded-lg border border-input px-3 py-2.5 bg-background focus:ring-2 focus:ring-primary outline-none transition-shadow" />
-                      </div>
-                      <div className="space-y-1.5 flex flex-col justify-end">
                         <label className="text-xs font-semibold text-foreground">Người trả phí (payment_type_id)</label>
                         <select name="payment_type_id" value={deliveryData.payment_type_id} onChange={handleDeliveryInputChange} className="w-full text-sm rounded-lg border border-input px-3 py-2.5 bg-background focus:ring-2 focus:ring-primary outline-none transition-shadow">
                           <option value={1}>1 - Người bán trả</option>
@@ -571,27 +561,10 @@ const SupplyDeliveryManagement = () => {
                         </select>
                       </div>
 
-                      {/* Cột 3 */}
-                      <div className="space-y-1.5 flex flex-col justify-end">
-                        <label className="text-xs font-semibold text-foreground">Dịch vụ (service_type_id)</label>
-                        <select name="service_type_id" value={deliveryData.service_type_id} onChange={handleDeliveryInputChange} className="w-full text-sm rounded-lg border border-input px-3 py-2.5 bg-background focus:ring-2 focus:ring-primary outline-none transition-shadow">
-                          <option value={1}>1 - Nhanh</option>
-                          <option value={2}>2 - Chuẩn</option>
-                        </select>
-                      </div>
-                      <div className="space-y-1.5 flex flex-col justify-end">
-                        <label className="text-xs font-semibold text-foreground">Ghi chú bắt buộc (required_note)</label>
-                        <select name="required_note" value={deliveryData.required_note} onChange={handleDeliveryInputChange} className="w-full text-sm rounded-lg border border-input px-3 py-2.5 bg-background focus:ring-2 focus:ring-primary outline-none transition-shadow">
-                          <option value="CHOTHUHANG">Cho thử hàng</option>
-                          <option value="CHOXEMHANGKHONGTHU">Cho xem hàng, không thử</option>
-                          <option value="KHONGCHOXEMHANG">Không cho xem hàng</option>
-                        </select>
-                      </div>
-
                       {/* Full width ghi chú */}
                       <div className="space-y-1.5 md:col-span-2">
-                        <label className="text-xs font-semibold text-foreground">Ghi chú thêm (note)</label>
-                        <textarea name="note" value={deliveryData.note} onChange={handleDeliveryInputChange} rows={2} className="w-full text-sm rounded-lg border border-input px-3 py-2.5 bg-background focus:ring-2 focus:ring-primary outline-none transition-shadow resize-none" placeholder="VD: Deliver during office hours"></textarea>
+                        <label className="text-xs font-semibold text-foreground">Ghi chú (note)</label>
+                        <textarea name="note" value={deliveryData.note} onChange={handleDeliveryInputChange} rows={2} className="w-full text-sm rounded-lg border border-input px-3 py-2.5 bg-background focus:ring-2 focus:ring-primary outline-none transition-shadow resize-none" placeholder="VD: Giao giờ hành chính"></textarea>
                       </div>
                     </div>
                     <div className="flex justify-end pt-3">
