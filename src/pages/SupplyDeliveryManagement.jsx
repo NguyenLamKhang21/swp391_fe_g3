@@ -277,7 +277,7 @@ const SupplyDeliveryManagement = () => {
                   <th className="px-6 py-4 text-left font-semibold">Trạng thái (statusOrder)</th>
                   <th className="px-6 py-4 text-left font-semibold">Tùy chọn thanh toán (paymentOption)</th>
                   <th className="px-6 py-4 text-left font-semibold">Thanh toán (paymentStatus)</th>
-                  <th className="px-6 py-4 text-left font-semibold">Ngày tạo (orderDate)</th>
+                  <th className="px-6 py-4 text-left font-semibold">Ngày giao hàng (deliveryDate)</th>
                   <th className="px-6 py-4 text-center font-semibold text-primary">Hành động</th>
                 </tr>
               </thead>
@@ -320,7 +320,7 @@ const SupplyDeliveryManagement = () => {
                         </span>
                       </td>
                       <td className="px-6 py-4 text-muted-foreground whitespace-nowrap">
-                        {order.orderDate ? new Date(order.orderDate).toLocaleString() : "N/A"}
+                        {order.orderDate ? new Date(order.orderDate).toLocaleDateString() : "N/A"}
                       </td>
                       <td className="px-6 py-4 text-center">
                         <button
@@ -466,7 +466,7 @@ const SupplyDeliveryManagement = () => {
                   { label: "Order Status",   value: selectedOrder.statusOrder },
                   { label: "Payment Status", value: selectedOrder.paymentStatus ?? "—" },
                   { label: "Priority Level", value: selectedOrder.priorityLevel ?? "—" },
-                  { label: "Ngày đặt",       value: selectedOrder.orderDate ? new Date(selectedOrder.orderDate).toLocaleString() : "—" },
+                  { label: "Ngày Giao",       value: selectedOrder.orderDate ? new Date(selectedOrder.orderDate).toLocaleString() : "—" },
                 ].map((f) => (
                   <div key={f.label} className="bg-muted/50 rounded-lg p-2">
                     <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">{f.label}</p>

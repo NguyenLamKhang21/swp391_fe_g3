@@ -94,6 +94,14 @@ const UserManagement = () => {
         : Array.isArray(res.data?.data)
           ? res.data.data
           : [];
+
+      // Sort users by createdAt ascending so the newest user is always at the bottom
+      list.sort((a, b) => {
+        const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return dateA - dateB;
+      });
+
       setUsers(list);
     } catch (err) {
       const msg = err?.response?.data?.message ?? "Failed to load users.";

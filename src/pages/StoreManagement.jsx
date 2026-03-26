@@ -95,12 +95,61 @@ const StoreManagement = () => {
     setLoading(true);
     setFetchError(null);
     try {
+      // Lấy danh sách tỉnh/thành phố nếu trong state chưa có
+      let allProvs = provinces;
+      if (allProvs.length === 0) {
+        try {
+          const pRes = await getProvinceId();
+          allProvs = Array.isArray(pRes.data) ? pRes.data : pRes.data?.data || [];
+          setProvinces(allProvs);
+        } catch (e) {}
+      }
+
       const res = await getAllStore();
       const list = Array.isArray(res.data)
         ? res.data
         : Array.isArray(res.data?.data)
           ? res.data.data
           : [];
+
+      // Sử dụng ID để gọi API và lấy tên thật của quận, phường 
+      const provNameToId = {};
+      allProvs.forEach(p => { provNameToId[p.ProvinceName] = p.ProvinceID; });
+
+      const distCache = {};
+      const wardCache = {};
+
+      for (const s of list) {
+        s.districtName = s.district ? String(s.district) : "";
+        s.wardName = s.ward ? String(s.ward) : "";
+
+        if (s.province && s.district) {
+          const pId = provNameToId[s.province];
+          if (pId) {
+            if (!distCache[pId]) {
+              try {
+                const dRes = await getDistrictAddress(pId);
+                distCache[pId] = Array.isArray(dRes.data) ? dRes.data : dRes.data?.data || [];
+              } catch (e) { distCache[pId] = []; }
+            }
+            const dMatch = distCache[pId].find(d => String(d.DistrictID) === String(s.district));
+            if (dMatch) s.districtName = dMatch.DistrictName;
+          }
+
+          const dId = s.district;
+          if (s.ward) {
+            if (!wardCache[dId]) {
+              try {
+                const wRes = await getWardAddress(dId);
+                wardCache[dId] = Array.isArray(wRes.data) ? wRes.data : wRes.data?.data || [];
+              } catch (e) { wardCache[dId] = []; }
+            }
+            const wMatch = wardCache[dId].find(w => String(w.WardCode) === String(s.ward));
+            if (wMatch) s.wardName = wMatch.WardName;
+          }
+        }
+      }
+
       setStores(list);
     } catch (err) {
       const msg = err?.response?.data?.message ?? "Failed to load stores.";
@@ -288,8 +337,10 @@ const StoreManagement = () => {
       s.storeId?.toLowerCase().includes(q)   ||
       s.address?.toLowerCase().includes(q)   ||
       s.province?.toLowerCase().includes(q)  ||
-      s.district?.toLowerCase().includes(q)  ||
-      s.ward?.toLowerCase().includes(q)      ||
+      s.districtName?.toLowerCase().includes(q) ||
+      String(s.district || "")?.includes(q)  ||
+      s.wardName?.toLowerCase().includes(q)  ||
+      String(s.ward || "")?.includes(q)      ||
       s.managerEmail?.toLowerCase().includes(q) ||
       s.numberOfContact?.includes(q);
 
@@ -593,8 +644,8 @@ const StoreManagement = () => {
                             {[
                               { label: "Tỉnh / TP",  value: s.province, wide: true },
                               { label: "Địa chỉ",    value: s.address, wide: true },
-                              { label: "Quận",       value: s.district },
-                              { label: "Phường / Xã",value: s.ward },
+                              { label: "Quận",       value: s.districtName },
+                              { label: "Phường / Xã",value: s.wardName },
                               { label: "Liên hệ",    value: s.numberOfContact },
                               { label: "Doanh thu",  value: fmtRevenue(s.revenue) },
                             ].map(({ label, value, wide }) => (
