@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
-import { ShoppingCart, Store, CreditCard, FileText, Utensils, Hash, CheckCircle, Loader2, ClipboardList, ChevronDown, ChevronUp, Receipt, Plus, Trash2, Calendar, ExternalLink, XCircle, Map, MapPin, X } from "lucide-react";
+import { ShoppingCart, Store, CreditCard, FileText, Utensils, Hash, CheckCircle, Loader2, ClipboardList, ChevronDown, ChevronUp, Receipt, Plus, Trash2, Calendar, ExternalLink, XCircle, Map, MapPin, X, Clock } from "lucide-react";
 import { toast } from "react-toastify";
 import API from "../api/axios";
 import { getOrdersByStore, getCentralKitchenFood, getOrderDetailByOrderId, createPaymentByOrder, cancelOrder, refundPayment, getAllDelivery, trackOrder, getDeliveryByStore } from "../api/authAPI";
@@ -746,6 +746,21 @@ const FranchiseStaff = () => {
                                 Thanh toán
                               </button>
                             )}
+                            {o.paymentOption === "PAY_AFTER_DELIVERY" &&
+                             o.statusOrder === "DELIVERED" &&
+                             o.paymentStatus !== "SUCCESS" && o.paymentStatus !== "PAID" && o.paymentStatus !== "REFUNDED" && (
+                              <button
+                                onClick={() => handleRetryPayment(o.orderId)}
+                                disabled={payingOrderId === o.orderId}
+                                className="inline-flex items-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-all duration-150 disabled:opacity-50"
+                              >
+                                {payingOrderId === o.orderId
+                                  ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                  : <ExternalLink className="w-3.5 h-3.5" />
+                                }
+                                Thanh toán
+                              </button>
+                            )}
                             {(o.statusOrder === "PENDING" || o.statusOrder === "WAITING_FOR_UPDATE") && (
                               <button
                                 onClick={() => handleCancelOrder(o)}
@@ -1022,6 +1037,47 @@ const FranchiseStaff = () => {
                       </tfoot>
                     </table>
                   </div>
+                </div>
+              )}
+
+              {/* PAY_AFTER_DELIVERY: show pay button only when DELIVERED */}
+              {selectedDetailOrder.paymentOption === "PAY_AFTER_DELIVERY" &&
+               selectedDetailOrder.statusOrder === "DELIVERED" &&
+               selectedDetailOrder.paymentStatus !== "SUCCESS" &&
+               selectedDetailOrder.paymentStatus !== "PAID" &&
+               selectedDetailOrder.paymentStatus !== "REFUNDED" && (
+                <div className="flex items-center gap-3 p-4 rounded-xl bg-emerald-50 border border-emerald-200">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-emerald-800">Đơn hàng đã giao thành công</p>
+                    <p className="text-xs text-emerald-600 mt-0.5">
+                      Hình thức Pay After Delivery — vui lòng thanh toán qua VNPay.
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => { closeDetailModal(); handleRetryPayment(selectedDetailOrder.orderId); }}
+                    disabled={payingOrderId === selectedDetailOrder.orderId}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 transition-colors disabled:opacity-50 flex-shrink-0"
+                  >
+                    {payingOrderId === selectedDetailOrder.orderId
+                      ? <Loader2 className="w-4 h-4 animate-spin" />
+                      : <ExternalLink className="w-4 h-4" />
+                    }
+                    Thanh toán ngay
+                  </button>
+                </div>
+              )}
+
+              {selectedDetailOrder.paymentOption === "PAY_AFTER_DELIVERY" &&
+               selectedDetailOrder.statusOrder !== "DELIVERED" &&
+               selectedDetailOrder.statusOrder !== "CANCELLED" &&
+               selectedDetailOrder.statusOrder !== "REJECTED" &&
+               selectedDetailOrder.paymentStatus !== "SUCCESS" &&
+               selectedDetailOrder.paymentStatus !== "PAID" && (
+                <div className="flex items-center gap-2 p-3 rounded-xl bg-amber-50 border border-amber-200">
+                  <Clock className="w-4 h-4 text-amber-500 flex-shrink-0" />
+                  <p className="text-xs text-amber-700">
+                    Thanh toán sẽ khả dụng sau khi đơn hàng được giao thành công (Delivered).
+                  </p>
                 </div>
               )}
 
