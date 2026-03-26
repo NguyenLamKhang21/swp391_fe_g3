@@ -232,11 +232,6 @@ const OrderCard = ({ order, storeName, onRefresh }) => {
     } finally { setActionLoading(false); }
   };
 
-<<<<<<< HEAD
-=======
-  const st = statusStyle(order.statusOrder);
-  const StIcon = st.icon;
-
   // check xem quantity trong order có quá ammount trong kho central food ko
   // true  → some item qty > stock  → needs kitchen production
   // false → all items within stock → can fulfill directly from warehouse
@@ -248,7 +243,6 @@ const OrderCard = ({ order, storeName, onRefresh }) => {
       })
     : false;
 
->>>>>>> aa90edc28ec3378bad2bde19ce3b6aa4c1209297
   return (
     <div>
       {detailLoading ? (
