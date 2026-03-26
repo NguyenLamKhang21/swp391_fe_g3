@@ -119,32 +119,55 @@ const StoreManagement = () => {
       const distCache = {};
       const wardCache = {};
 
+      // BƯỚC 1: Thu thập tất cả các Province ID và District ID độc nhất 
+      // Việc này giúp tránh gọi trùng lặp cùng một ID nhiều lần.
+      const requiredPIds = new Set();
+      const requiredDIds = new Set();
+
+      for (const s of list) {
+        if (s.province && s.district) {
+          const pId = provNameToId[s.province];
+          if (pId) requiredPIds.add(pId);
+          if (s.ward) requiredDIds.add(s.district);
+        }
+      }
+
+      // BƯỚC 2: Gọi API đồng thời (Parallel Fetching)
+      // Dùng Promise.all để gửi tất cả các requests lên GHN cùng một lúc
+      // Thay vì phải chờ từng request báo về xong mới chạy tiếp (N+1 Query Problem).
+      await Promise.all(
+        Array.from(requiredPIds).map(async (pId) => {
+          try {
+            const dRes = await getDistrictAddress(pId);
+            distCache[pId] = Array.isArray(dRes.data) ? dRes.data : dRes.data?.data || [];
+          } catch (e) { distCache[pId] = []; }
+        })
+      );
+
+      // Tuơng tự, fetch tất cả danh sách Phường/Xã cho các Quận/Huyện song song.
+      await Promise.all(
+        Array.from(requiredDIds).map(async (dId) => {
+          try {
+            const wRes = await getWardAddress(dId);
+            wardCache[dId] = Array.isArray(wRes.data) ? wRes.data : wRes.data?.data || [];
+          } catch (e) { wardCache[dId] = []; }
+        })
+      );
+
+      // BƯỚC 3: Xử lý dữ liệu đồng bộ
+      // Gắn tên thật của Quận và Phường vào từng Store ngay lập tức trên máy khách.
       for (const s of list) {
         s.districtName = s.district ? String(s.district) : "";
         s.wardName = s.ward ? String(s.ward) : "";
 
         if (s.province && s.district) {
           const pId = provNameToId[s.province];
-          if (pId) {
-            if (!distCache[pId]) {
-              try {
-                const dRes = await getDistrictAddress(pId);
-                distCache[pId] = Array.isArray(dRes.data) ? dRes.data : dRes.data?.data || [];
-              } catch (e) { distCache[pId] = []; }
-            }
+          if (pId && distCache[pId]) {
             const dMatch = distCache[pId].find(d => String(d.DistrictID) === String(s.district));
             if (dMatch) s.districtName = dMatch.DistrictName;
           }
-
-          const dId = s.district;
-          if (s.ward) {
-            if (!wardCache[dId]) {
-              try {
-                const wRes = await getWardAddress(dId);
-                wardCache[dId] = Array.isArray(wRes.data) ? wRes.data : wRes.data?.data || [];
-              } catch (e) { wardCache[dId] = []; }
-            }
-            const wMatch = wardCache[dId].find(w => String(w.WardCode) === String(s.ward));
+          if (s.ward && wardCache[s.district]) {
+            const wMatch = wardCache[s.district].find(w => String(w.WardCode) === String(s.ward));
             if (wMatch) s.wardName = wMatch.WardName;
           }
         }

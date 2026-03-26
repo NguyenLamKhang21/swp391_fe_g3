@@ -4,10 +4,9 @@ import RequireAuth from "./components/ui/RequireAuth";
 import AdminLayout from "./layouts/AdminLayout";
 
 // Admin pages
-
-import AdminDashboard  from "./pages/AdminDashboard";
 import UserManagement from "./pages/UserManagement";
 import StoreManagement from "./pages/StoreManagement";
+import KitchenConfig from "./pages/KitchenConfig";
 
 
 // Franchise Staff pages
@@ -84,6 +83,7 @@ const App = () => (
         <Route path="stores" element={<StoreManagement />} />
 
         {/* 👇 Add more pages here following the same pattern */}
+        <Route path="kitchen-config" element={<KitchenConfig />} />
       </Route>
 
       {/* ── Franchise Staff routes ─────────────────────────────────────── */}

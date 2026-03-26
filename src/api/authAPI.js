@@ -117,3 +117,10 @@ export const updateBatchStatus = (batchId, newStatus) =>
   API.patch(`/supply/batches/${batchId}/status?newStatus=${newStatus}`);
 
 export const reAggregateBatches = (date) => API.post(`/supply/re-aggregate`, null, { params: { date } });
+
+//kitchen config for admin
+
+export const getKitchenConfig = () => API.get(`/config`);
+
+export const updateKitchenConfig = (configKey, value, description) =>
+  API.put(`/config/${configKey}`, { value, description });

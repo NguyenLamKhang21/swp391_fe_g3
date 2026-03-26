@@ -25,18 +25,27 @@ const SupplyDeliveryManagement = () => {
   const [ordersError, setOrdersError] = useState(null);
 
   const [storeNameMap, setStoreNameMap] = useState({});
+  const [storeAddressMap, setStoreAddressMap] = useState({});
   useEffect(() => {
     (async () => {
       try {
         const res = await getAllStore();
         const list = Array.isArray(res.data) ? res.data : res.data?.data ?? [];
-        const map = {};
-        list.forEach((s) => { if (s.storeId) map[s.storeId] = s.storeName ?? s.storeId; });
-        setStoreNameMap(map);
+        const nameMap = {};
+        const addrMap = {};
+        list.forEach((s) => { 
+          if (s.storeId) {
+            nameMap[s.storeId] = s.storeName ?? s.storeId; 
+            addrMap[s.storeId] = s.address ?? "Chưa cập nhật địa chỉ";
+          }
+        });
+        setStoreNameMap(nameMap);
+        setStoreAddressMap(addrMap);
       } catch { /* silent */ }
     })();
   }, []);
   const getStoreName = (id) => storeNameMap[id] || id;
+  const getStoreAddress = (id) => storeAddressMap[id] || "Không rõ";
 
   const [deliveries, setDeliveries] = useState([]);
   const [loadingDeliveries, setLoadingDeliveries] = useState(false);
@@ -467,6 +476,16 @@ const SupplyDeliveryManagement = () => {
                     <p className="text-xs font-medium text-foreground mt-0.5 truncate">{f.value}</p>
                   </div>
                 ))}
+              </div>
+
+              {/* Store Address */}
+              <div className="bg-rose-50/50 rounded-lg p-3 border border-rose-100/50 mt-3">
+                <p className="text-[10px] font-semibold text-rose-600 uppercase tracking-wider mb-1.5 flex items-center gap-1">
+                  <MapPin className="w-3 h-3" /> Địa chỉ Cửa hàng nhận
+                </p>
+                <p className="text-xs font-medium text-rose-900 leading-relaxed">
+                  {getStoreAddress(selectedOrder.storeId)}
+                </p>
               </div>
 
               {/* Order Detail items */}
