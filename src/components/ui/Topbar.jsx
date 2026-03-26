@@ -25,24 +25,8 @@ const Topbar = ({ pageTitle }) => {
         <h1 className="text-lg font-semibold text-foreground truncate">{pageTitle}</h1>
       </div>
 
-      {/* Center: Search */}
-      <div className="hidden md:flex items-center gap-2 admin-search-bar rounded-lg px-3 py-2 w-64">
-        <Search className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-        <input
-          type="text"
-          placeholder="Tìm kiếm..."
-          className="bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none w-full"
-        />
-      </div>
-
       {/* Right: Notifications + Profile */}
       <div className="flex items-center gap-3">
-        {/* Notification bell */}
-        <button className="relative w-9 h-9 flex items-center justify-center rounded-lg hover:bg-muted transition-colors">
-          <Bell className="w-5 h-5 text-muted-foreground" />
-          <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-primary rounded-full border-2 border-background" />
-        </button>
-
         {/* Divider */}
         <div className="w-px h-6 bg-border" />
 

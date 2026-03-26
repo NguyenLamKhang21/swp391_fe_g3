@@ -195,10 +195,10 @@ const CentralKitchenInventory = () => {
   };
 
   const handleFormChange = (e) => {
-    const { name, value, type } = e.target;
+    const { name, value } = e.target;
     setFormData((prev) => ({
       ...prev,
-      [name]: type === "number" ? Number(value) : value,
+      [name]: value,
     }));
   };
 
@@ -208,13 +208,24 @@ const CentralKitchenInventory = () => {
       toast.warn("Vui lòng nhập tên thực phẩm.");
       return;
     }
+
+    const payload = {
+      ...formData,
+      amount: Number(formData.amount),
+      unitPriceFood: Number(formData.unitPriceFood),
+      weight: Number(formData.weight),
+      length: Number(formData.length),
+      width: Number(formData.width),
+      height: Number(formData.height)
+    };
+
     try {
       setSaving(true);
       if (editingFood) {
-        await updateCentralFood(editingFood.foodId, formData);
+        await updateCentralFood(editingFood.foodId, payload);
         toast.success(`Đã cập nhật "${formData.foodName}".`);
       } else {
-        await createCentralFood(formData);
+        await createCentralFood(payload);
         toast.success(`Đã thêm "${formData.foodName}".`);
       }
       closeForm();
@@ -691,7 +702,7 @@ const CentralKitchenInventory = () => {
 
                 <div className="space-y-1.5">
                   <label className="text-sm font-medium text-foreground">Khối lượng (g)</label>
-                  <input name="weight" type="number" min="0" value={formData.weight} onChange={handleFormChange} className="um-input w-full" />
+                  <input name="weight" type="number" step="0.01" min="0" value={formData.weight} onChange={handleFormChange} className="um-input w-full" />
                 </div>
 
                 <div className="space-y-1.5">

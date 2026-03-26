@@ -653,12 +653,12 @@ const OrderCard = ({ order, storeName, onRefresh }) => {
             </div>
           )}
 
-          {/* ── READY_TO_PICK: free priority update panel ── */}
-          {order.statusOrder === "READY_TO_PICK" && (
+          {/* ── READY_TO_PICK / WAITING_FOR_PRODUCTION: free priority update panel ── */}
+          {["READY_TO_PICK", "WAITING_FOR_PRODUCTION"].includes(order.statusOrder) && (
             <div className="border border-blue-200 rounded-lg p-4 space-y-3 bg-blue-50/40">
               <h4 className="text-xs font-semibold text-blue-800 flex items-center gap-1.5">
                 <ArrowRight className="w-3.5 h-3.5 text-blue-600" />
-                Cập nhật Priority — đơn đang READY_TO_PICK
+                Cập nhật Priority — đơn đang {order.statusOrder}
               </h4>
               <div className="flex flex-wrap items-end gap-3">
                 <div className="space-y-1">

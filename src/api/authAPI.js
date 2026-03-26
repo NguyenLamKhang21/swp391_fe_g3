@@ -107,11 +107,20 @@ export const getDeliveryByStore = (storeId) => API.get(`/delivery/shipments/stor
 //supply-controller
 export const getBatchesSuggestion = (date) => API.get(`/supply/preview`, { params: { date } });
 
-// POST /supply/aggregate?date={date}
-// Creates production batches (status=DRAFT) from all WAITING_FOR_PRODUCTION orders on the given date.
-// Note: date is a QUERY param (not a request body), so we pass null as body and put params in config (3rd arg).
 export const createBatches = (date) => API.post(`/supply/aggregate`, null, { params: { date } });
 
 export const sendBatchesToKitchen = (batchId) => API.post(`/supply/batches/${batchId}/send`);
 
 export const getAllBatches = () => API.get(`/supply/batches/all`);
+
+export const updateBatchStatus = (batchId, newStatus) =>
+  API.patch(`/supply/batches/${batchId}/status?newStatus=${newStatus}`);
+
+export const reAggregateBatches = (date) => API.post(`/supply/re-aggregate`, null, { params: { date } });
+
+//kitchen config for admin
+
+export const getKitchenConfig = () => API.get(`/config`);
+
+export const updateKitchenConfig = (configKey, value, description) =>
+  API.put(`/config/${configKey}`, { value, description });

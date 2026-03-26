@@ -1,4 +1,4 @@
-import { LayoutDashboard, Users, Store } from "lucide-react";
+import { LayoutDashboard, Users, Store, CookingPot } from "lucide-react";
 import MainLayout from "./MainLayout";
 
 /**
@@ -27,7 +27,8 @@ const adminNavItems = [
     items: [
       //khúc này chưa rõ lắm
       { label: "User Management",  icon: Users,  to: "/admin/users"  },
-      { label: "Store Management", icon: Store,  to: "/admin/stores" },
+      { label: "Store Management", icon: Store, to: "/admin/stores" },
+      { label: "Kitchen Config", icon: CookingPot,  to: "/admin/kitchen-config" },
     ],
   },
   // Add more sections/items here as the app grows, e.g.:
