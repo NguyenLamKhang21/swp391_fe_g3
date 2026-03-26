@@ -39,6 +39,16 @@ const FS_TABS = [
   { key: "REJECTED",      label: "Rejected" },
 ];
 
+const getOrderStatusColor = (st) => {
+  if (!st) return "bg-muted text-muted-foreground";
+  const upper = st.toUpperCase();
+  if (["PENDING", "PICKING", "SORTING", "STORING"].includes(upper)) return "bg-amber-100 text-amber-700";
+  if (["CANCELLED", "CANCEL", "REJECTED", "DELIVERY_FAIL", "RETURN_FAIL", "RETURNED", "RETURN", "WAITING_TO_RETURN"].includes(upper)) return "bg-red-100 text-red-600";
+  if (["COMPLETED", "DELIVERED", "PICKED"].includes(upper)) return "bg-green-100 text-green-700";
+  if (["READY_TO_PICK", "TRANSPORTING", "DELIVERING", "IN_PROGRESS", "MONEY_COLLECT_PICKING", "MONEY_COLLECT_DELIVERING", "RETURNING", "RETURN_TRANSPORTING", "RETURN_SORTING", "COOKING", "COOKING_DONE", "APPROVED", "CONFIRMED"].includes(upper)) return "bg-blue-100 text-blue-700";
+  return "bg-slate-100 text-slate-700";
+};
+
 /* ══════════════════════════════════════════════════════════════════════ */
 const FranchiseStaff = () => {
   const navigate = useNavigate();
@@ -689,14 +699,7 @@ const FranchiseStaff = () => {
                           <span className="badge badge-pending">{o.paymentOption ?? "—"}</span>
                         </td>
                         <td className="px-6 py-4 text-center">
-                          <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full ${
-                            o.statusOrder === "PENDING"    ? "bg-amber-100 text-amber-700" :
-                            o.statusOrder === "CANCELLED"  ? "bg-red-100 text-red-600" :
-                            o.statusOrder === "COMPLETED" || o.statusOrder === "DELIVERED" ? "bg-green-100 text-green-700" :
-                            o.statusOrder === "READY_TO_PICK" ? "bg-blue-100 text-blue-700" :
-                            o.statusOrder === "IN_PROGRESS" ? "bg-purple-100 text-purple-700" :
-                            "bg-muted text-muted-foreground"
-                          }`}>
+                          <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full ${getOrderStatusColor(o.statusOrder)}`}>
                             <CheckCircle className="w-3.5 h-3.5" />
                             {o.statusOrder ?? "—"}
                           </span>

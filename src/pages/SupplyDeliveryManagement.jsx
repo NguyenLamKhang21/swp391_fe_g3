@@ -460,8 +460,7 @@ const SupplyDeliveryManagement = () => {
                   { label: "Order Status",   value: selectedOrder.statusOrder },
                   { label: "Payment Status", value: selectedOrder.paymentStatus ?? "—" },
                   { label: "Priority Level", value: selectedOrder.priorityLevel ?? "—" },
-                  { label: "Ngày Giao",       value: selectedOrder.orderDate ? new Date(selectedOrder.orderDate).toLocaleString() : "—" },
-                  { label: "Ngày đặt",       value: selectedOrder.orderDate ? new Date(selectedOrder.orderDate).toLocaleDateString() : "—" },
+                  { label: "Ngày Giao",       value: selectedOrder.orderDate ? new Date(selectedOrder.orderDate).toLocaleDateString() : "—" },
                 ].map((f) => (
                   <div key={f.label} className="bg-muted/50 rounded-lg p-2">
                     <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">{f.label}</p>
