@@ -73,6 +73,9 @@ export const createDebtPayment = (storeId) =>
 export const refundPayment = (orderId) =>
   API.post(`/payment/refund/${orderId}`);
 
+export const payByCash = (orderId) =>
+  API.post(`/orders/cash/${orderId}`);
+
 export const getPaymentByTxnRef = (txnRef) =>
   API.get(`/payment/${txnRef}`);
 
@@ -83,6 +86,9 @@ export const getAllStore = () => API.get("/franchise-stores");
 
 export const getStorePaymentRecords = (storeId) =>
   API.get(`/franchise-stores/${encodeURIComponent(storeId)}/payment-records`);
+
+export const createDebtRecord = (storeId, debtAmount) =>
+  API.post("/franchise-stores/payment-records", { storeId, debtAmount });
 
 export const createNewFranchiseStore = (data) => API.post("/franchise-stores", data);
 

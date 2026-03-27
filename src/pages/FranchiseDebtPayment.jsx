@@ -46,9 +46,10 @@ const FranchiseDebtPayment = () => {
         setDebtOrders(
           arr.filter(
             (o) =>
-              o.paymentOption === "PAY_AT_THE_END_OF_MONTH" &&
               o.paymentStatus !== "SUCCESS" &&
-              o.paymentStatus !== "PAID"
+              o.paymentStatus !== "PAID" &&
+              o.statusOrder !== "CANCELLED" &&
+              o.statusOrder !== "REJECTED"
           )
         );
       }
@@ -149,7 +150,7 @@ const FranchiseDebtPayment = () => {
                   <ClipboardList className="w-5 h-5 text-blue-600" />
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground font-medium">Đơn chưa thanh toán (cuối tháng)</p>
+                  <p className="text-xs text-muted-foreground font-medium">Đơn chưa thanh toán</p>
                   <p className="text-xl font-bold text-foreground">{debtOrders.length}</p>
                 </div>
               </div>
@@ -268,7 +269,7 @@ const FranchiseDebtPayment = () => {
             <div className="admin-card rounded-xl overflow-hidden">
               <div className="px-6 py-4 border-b border-border flex items-center justify-between">
                 <h3 className="text-base font-semibold text-foreground">
-                  Đơn hàng chưa thanh toán (Pay At The End Of The Month)
+                  Đơn hàng chưa thanh toán
                 </h3>
                 <span className="badge badge-pending">{debtOrders.length} đơn</span>
               </div>

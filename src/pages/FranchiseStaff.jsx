@@ -4,12 +4,11 @@ import { useNavigate } from "react-router-dom";
 import { ShoppingCart, Store, CreditCard, FileText, Utensils, Hash, CheckCircle, Loader2, ClipboardList, ChevronDown, ChevronUp, Receipt, Plus, Trash2, Calendar, ExternalLink, XCircle, Map, MapPin, X, Clock } from "lucide-react";
 import { toast } from "react-toastify";
 import API from "../api/axios";
-import { getOrdersByStore, getCentralKitchenFood, getOrderDetailByOrderId, createPaymentByOrder, cancelOrder, refundPayment, getAllDelivery, trackOrder, getDeliveryByStore } from "../api/authAPI";
+import { getOrdersByStore, getCentralKitchenFood, getOrderDetailByOrderId, createPaymentByOrder, cancelOrder, refundPayment, getAllDelivery, trackOrder, getDeliveryByStore, payByCash } from "../api/authAPI";
 
 const PAYMENT_OPTIONS = [
-  { value: "PAY_AFTER_ORDER",         label: "Pay After Order"              },
-  { value: "PAY_AFTER_DELIVERY",      label: "Pay After Delivery"           },
-  { value: "PAY_AT_THE_END_OF_MONTH", label: "Pay At The End Of The Month"  },
+  { value: "PAY_AFTER_ORDER",    label: "Pay After Order"    },
+  { value: "PAY_AFTER_DELIVERY", label: "Pay After Delivery" },
 ];
 
 const PAYMENT_METHOD_OPTIONS = [
@@ -297,6 +296,20 @@ const FranchiseStaff = () => {
     } catch (err) {
       console.error("[RetryPayment] error:", err?.response?.status, err?.response?.data);
       toast.error(err?.response?.data?.message ?? "Tạo link thanh toán thất bại.");
+    } finally {
+      setPayingOrderId(null);
+    }
+  };
+
+  const handleCashPayment = async (orderId) => {
+    try {
+      setPayingOrderId(orderId);
+      await payByCash(orderId);
+      toast.success(`Đơn ${orderId} đã xác nhận thanh toán COD thành công.`);
+      fetchOrders();
+    } catch (err) {
+      console.error("[CashPayment] error:", err?.response?.status, err?.response?.data);
+      toast.error(err?.response?.data?.message ?? "Xác nhận thanh toán COD thất bại.");
     } finally {
       setPayingOrderId(null);
     }
@@ -746,21 +759,6 @@ const FranchiseStaff = () => {
                                 Thanh toán
                               </button>
                             )}
-                            {o.paymentOption === "PAY_AFTER_DELIVERY" &&
-                             o.statusOrder === "DELIVERED" &&
-                             o.paymentStatus !== "SUCCESS" && o.paymentStatus !== "PAID" && o.paymentStatus !== "REFUNDED" && (
-                              <button
-                                onClick={() => handleRetryPayment(o.orderId)}
-                                disabled={payingOrderId === o.orderId}
-                                className="inline-flex items-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-all duration-150 disabled:opacity-50"
-                              >
-                                {payingOrderId === o.orderId
-                                  ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                                  : <ExternalLink className="w-3.5 h-3.5" />
-                                }
-                                Thanh toán
-                              </button>
-                            )}
                             {(o.statusOrder === "PENDING" || o.statusOrder === "WAITING_FOR_UPDATE") && (
                               <button
                                 onClick={() => handleCancelOrder(o)}
@@ -1040,30 +1038,43 @@ const FranchiseStaff = () => {
                 </div>
               )}
 
-              {/* PAY_AFTER_DELIVERY: show pay button only when DELIVERED */}
+              {/* PAY_AFTER_DELIVERY: show pay options when DELIVERED */}
               {selectedDetailOrder.paymentOption === "PAY_AFTER_DELIVERY" &&
                selectedDetailOrder.statusOrder === "DELIVERED" &&
                selectedDetailOrder.paymentStatus !== "SUCCESS" &&
                selectedDetailOrder.paymentStatus !== "PAID" &&
                selectedDetailOrder.paymentStatus !== "REFUNDED" && (
-                <div className="flex items-center gap-3 p-4 rounded-xl bg-emerald-50 border border-emerald-200">
-                  <div className="flex-1 min-w-0">
+                <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 space-y-3">
+                  <div>
                     <p className="text-sm font-semibold text-emerald-800">Đơn hàng đã giao thành công</p>
                     <p className="text-xs text-emerald-600 mt-0.5">
-                      Hình thức Pay After Delivery — vui lòng thanh toán qua VNPay.
+                      Hình thức Pay After Delivery — chọn phương thức thanh toán bên dưới.
                     </p>
                   </div>
-                  <button
-                    onClick={() => { closeDetailModal(); handleRetryPayment(selectedDetailOrder.orderId); }}
-                    disabled={payingOrderId === selectedDetailOrder.orderId}
-                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 transition-colors disabled:opacity-50 flex-shrink-0"
-                  >
-                    {payingOrderId === selectedDetailOrder.orderId
-                      ? <Loader2 className="w-4 h-4 animate-spin" />
-                      : <ExternalLink className="w-4 h-4" />
-                    }
-                    Thanh toán ngay
-                  </button>
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => { closeDetailModal(); handleCashPayment(selectedDetailOrder.orderId); }}
+                      disabled={payingOrderId === selectedDetailOrder.orderId}
+                      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-amber-500 text-white text-sm font-semibold hover:bg-amber-600 transition-colors disabled:opacity-50"
+                    >
+                      {payingOrderId === selectedDetailOrder.orderId
+                        ? <Loader2 className="w-4 h-4 animate-spin" />
+                        : <CreditCard className="w-4 h-4" />
+                      }
+                      Thanh toán COD (Tiền mặt)
+                    </button>
+                    <button
+                      onClick={() => { closeDetailModal(); handleRetryPayment(selectedDetailOrder.orderId); }}
+                      disabled={payingOrderId === selectedDetailOrder.orderId}
+                      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 transition-colors disabled:opacity-50"
+                    >
+                      {payingOrderId === selectedDetailOrder.orderId
+                        ? <Loader2 className="w-4 h-4 animate-spin" />
+                        : <ExternalLink className="w-4 h-4" />
+                      }
+                      Thanh toán VNPay
+                    </button>
+                  </div>
                 </div>
               )}
 
