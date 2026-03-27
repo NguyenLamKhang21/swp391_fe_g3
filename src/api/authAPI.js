@@ -73,6 +73,9 @@ export const createDebtPayment = (storeId) =>
 export const refundPayment = (orderId) =>
   API.post(`/payment/refund/${orderId}`);
 
+export const payByCash = (orderId) =>
+  API.post(`/orders/cash/${orderId}`);
+
 export const getPaymentByTxnRef = (txnRef) =>
   API.get(`/payment/${txnRef}`);
 
