@@ -1,10 +1,9 @@
 import { useState, useEffect, useCallback } from "react";
-import { createPortal } from "react-dom";
 import {
   ClipboardList, CheckCircle, Clock, Loader2, RefreshCw, Search,
   XCircle, AlertCircle, ShieldAlert, Package, ArrowRight,
   MessageSquare, AlertTriangle, DollarSign, ExternalLink,
-  FileText, Truck, Eye, X,
+  FileText, Truck,
 } from "lucide-react";
 import { toast } from "react-toastify";
 import {
@@ -740,12 +739,11 @@ const OrderCard = ({ order, storeName, onRefresh }) => {
    Main component
    ═══════════════════════════════════════════════════════════════════════ */
 const SupplyCoordinatorOrders = () => {
-  const [orders, setOrders]               = useState([]);
-  const [loading, setLoading]             = useState(true);
-  const [searchTerm, setSearchTerm]       = useState("");
-  const [activeTab, setActiveTab]         = useState("ALL");
-  const [selectedOrder, setSelectedOrder] = useState(null);
-  const [storeNameMap, setStoreNameMap]   = useState({});
+  const [orders, setOrders]             = useState([]);
+  const [loading, setLoading]           = useState(true);
+  const [searchTerm, setSearchTerm]     = useState("");
+  const [activeTab, setActiveTab]       = useState("ALL");
+  const [storeNameMap, setStoreNameMap] = useState({});
 
   useEffect(() => {
     (async () => {
@@ -908,96 +906,48 @@ const SupplyCoordinatorOrders = () => {
             <span className="badge badge-delivered">{filtered.length} orders</span>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="admin-table-header">
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">Order ID</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">Store</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">Delivery Date</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">Priority</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">Payment</th>
-                  <th className="px-6 py-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider">Order Status</th>
-                  <th className="px-6 py-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider">Payment Status</th>
-                  <th className="px-6 py-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {filtered.map((o) => {
-                  const st = statusStyle(o.statusOrder);
-                  const StIcon = st.icon;
-                  return (
-                    <tr key={o.orderId} className="admin-table-row">
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full admin-avatar flex items-center justify-center text-primary-foreground text-xs font-bold flex-shrink-0">
-                            <ClipboardList className="w-4 h-4" />
-                          </div>
-                          <p className="font-medium text-foreground">{o.orderId}</p>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-foreground">{storeName(o.storeId)}</td>
-                      <td className="px-6 py-4 text-muted-foreground">{o.orderDate ?? "—"}</td>
-                      <td className="px-6 py-4 text-foreground">{o.priorityLevel ?? "—"}</td>
-                      <td className="px-6 py-4">
-                        <span className="badge badge-pending">{o.paymentOption ?? "—"}</span>
-                      </td>
-                      <td className="px-6 py-4 text-center">
-                        <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full border ${st.bg} ${st.color} ${st.border}`}>
-                          <StIcon className="w-3.5 h-3.5" />
-                          {o.statusOrder}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-center">
-                        <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full ${
-                          o.paymentStatus === "SUCCESS" || o.paymentStatus === "PAID" ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                          : o.paymentStatus === "REFUNDED" ? "bg-blue-50 text-blue-700 border border-blue-200"
-                          : "bg-amber-50 text-amber-700 border border-amber-200"
-                        }`}>
-                          {o.paymentStatus ?? "—"}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-center">
-                        <button
-                          onClick={() => setSelectedOrder(o)}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
-                        >
-                          <Eye className="w-3.5 h-3.5" />
-                          Chi tiết
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+          <div className="space-y-4 p-4">
+            {filtered.map((o) => {
+              const st = statusStyle(o.statusOrder);
+              const StIcon = st.icon;
+              return (
+                <div key={o.orderId} className="border border-border rounded-xl overflow-hidden shadow-sm">
+                  {/* ── Summary header row ── */}
+                  <div className="flex flex-wrap items-center gap-4 px-5 py-3 bg-muted/40 border-b border-border">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <div className="w-7 h-7 rounded-full admin-avatar flex items-center justify-center text-primary-foreground flex-shrink-0">
+                        <ClipboardList className="w-3.5 h-3.5" />
+                      </div>
+                      <span className="text-sm font-bold text-foreground truncate">{o.orderId}</span>
+                    </div>
+                    <span className="text-sm text-muted-foreground">{storeName(o.storeId)}</span>
+                    <span className="text-xs text-muted-foreground">{o.orderDate ?? "—"}</span>
+                    <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full border ${st.bg} ${st.color} ${st.border}`}>
+                      <StIcon className="w-3 h-3" />
+                      {o.statusOrder}
+                    </span>
+                    <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full ${
+                      o.paymentStatus === "SUCCESS" || o.paymentStatus === "PAID" ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                      : o.paymentStatus === "REFUNDED" ? "bg-blue-50 text-blue-700 border border-blue-200"
+                      : "bg-amber-50 text-amber-700 border border-amber-200"
+                    }`}>
+                      {o.paymentStatus ?? "—"}
+                    </span>
+                    {o.priorityLevel && (
+                      <span className="text-xs font-semibold text-muted-foreground">Priority: {o.priorityLevel}</span>
+                    )}
+                    <span className="badge badge-pending ml-auto">{o.paymentOption ?? "—"}</span>
+                  </div>
+                  {/* ── Inline detail (OrderCard) ── */}
+                  <OrderCard order={o} storeName={storeName} onRefresh={fetchOrders} />
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
 
-      {/* ══════════════════ ORDER DETAIL MODAL ══════════════════ */}
-      {selectedOrder && createPortal(
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setSelectedOrder(null)} />
-          <div className="relative bg-background border border-border rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col animate-fade-in">
-            <div className="flex-shrink-0 px-6 py-4 border-b border-border flex items-center justify-between">
-              <div>
-                <h3 className="text-lg font-bold text-foreground">Chi tiết — {selectedOrder.orderId}</h3>
-                <p className="text-[11px] text-muted-foreground mt-0.5">
-                  Store: {storeName(selectedOrder.storeId)} · {selectedOrder.orderDate}
-                </p>
-              </div>
-              <button onClick={() => setSelectedOrder(null)} className="p-2 rounded-lg hover:bg-muted transition-colors">
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            <div className="flex-1 overflow-y-auto">
-              <OrderCard order={selectedOrder} storeName={storeName} onRefresh={() => { fetchOrders(); setSelectedOrder(null); }} />
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
+
     </div>
   );
 };
