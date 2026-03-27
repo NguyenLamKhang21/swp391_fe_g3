@@ -2,10 +2,10 @@ import { useState, useEffect, useCallback } from "react";
 import {
   ChefHat, CheckCircle, Clock, Loader2, RefreshCw, Search,
   Package, XCircle, AlertCircle, MessageSquare, FileText,
-  ArrowRight, Factory,
+  ArrowRight, Factory, Warehouse,
 } from "lucide-react";
 import { toast } from "react-toastify";
-import { getAllBatches, updateBatchStatus } from "../api/authAPI";
+import { getAllBatches, updateBatchStatus, increaseFoodBasedOnBatch } from "../api/authAPI";
 
 /* ═══════════════════════════════════════════════════════════════════════
    Status config — batch statuses
@@ -45,6 +45,8 @@ const TABS = [
 const BatchCard = ({ batch, onRefresh }) => {
   const [selectedStatus, setSelectedStatus] = useState(batch.status);
   const [actionLoading, setActionLoading]   = useState(false);
+  const [stockLoading, setStockLoading]     = useState(false);
+  const [hasStocked, setHasStocked]         = useState(false);
 
   // reset picker if the batch prop status changes (after a refresh)
   useEffect(() => {
@@ -62,6 +64,22 @@ const BatchCard = ({ batch, onRefresh }) => {
       toast.error(err?.response?.data?.message ?? "Không thể cập nhật trạng thái batch.");
     } finally {
       setActionLoading(false);
+    }
+  };
+  //xử lí tăng số lượng đồ ăn trong kho central kitchen dựa trên batch
+
+  const handleIncreaseStock = async () => {
+    if (hasStocked) return;
+    try {
+      setStockLoading(true);
+      await increaseFoodBasedOnBatch(batch.batchId);
+      toast.success(`Đã nhập kho thành công cho batch ${batch.batchId}.`);
+      setHasStocked(true);
+      onRefresh();
+    } catch (err) {
+      toast.error(err?.response?.data?.message ?? "Không thể nhập kho. Vui lòng thử lại.");
+    } finally {
+      setStockLoading(false);
     }
   };
 
@@ -204,6 +222,28 @@ const BatchCard = ({ batch, onRefresh }) => {
             >
               {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
               Cập nhật trạng thái
+            </button>
+          </div>
+          // thêm nút nhập kho khi batch ở trạng thái PRODUCTION_COMPLETED
+        ) : batch.status === "PRODUCTION_COMPLETED" ? (
+          <div className="border border-emerald-200 rounded-lg p-4 bg-emerald-50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold text-emerald-800">Sản xuất hoàn thành</p>
+              <p className="text-xs text-emerald-600 mt-0.5">
+                {hasStocked ? "Đã nhập kho thành công. Không thể nhập lại." : "Nhấn để nhập số lượng vào kho dựa trên batch này."}
+              </p>
+            </div>
+            <button
+              onClick={handleIncreaseStock}
+              disabled={stockLoading || hasStocked}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all disabled:opacity-50 flex-shrink-0 ${
+                hasStocked
+                  ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                  : "bg-emerald-600 text-white hover:bg-emerald-700 active:scale-[0.98]"
+              }`}
+            >
+              {stockLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Warehouse className="w-4 h-4" />}
+              {hasStocked ? "Đã nhập kho" : "Nhập kho"}
             </button>
           </div>
         ) : (

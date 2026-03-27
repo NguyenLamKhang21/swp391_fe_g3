@@ -127,3 +127,7 @@ export const getKitchenConfig = () => API.get(`/config`);
 
 export const updateKitchenConfig = (configKey, value, description) =>
   API.put(`/config/${configKey}`, { value, description });
+
+// central food
+
+export const increaseFoodBasedOnBatch = (batchId) => API.put(`/central_foods/increase/${batchId}`);
