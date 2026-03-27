@@ -7,9 +7,8 @@ import API from "../api/axios";
 import { getOrdersByStore, getCentralKitchenFood, getOrderDetailByOrderId, createPaymentByOrder, cancelOrder, refundPayment, getAllDelivery, trackOrder, getDeliveryByStore, payByCash } from "../api/authAPI";
 
 const PAYMENT_OPTIONS = [
-  { value: "PAY_AFTER_ORDER",         label: "Pay After Order"              },
-  { value: "PAY_AFTER_DELIVERY",      label: "Pay After Delivery"           },
-  { value: "PAY_AT_THE_END_OF_MONTH", label: "Pay At The End Of The Month"  },
+  { value: "PAY_AFTER_ORDER",    label: "Pay After Order"    },
+  { value: "PAY_AFTER_DELIVERY", label: "Pay After Delivery" },
 ];
 
 const PAYMENT_METHOD_OPTIONS = [

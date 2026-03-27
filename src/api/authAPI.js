@@ -87,6 +87,9 @@ export const getAllStore = () => API.get("/franchise-stores");
 export const getStorePaymentRecords = (storeId) =>
   API.get(`/franchise-stores/${encodeURIComponent(storeId)}/payment-records`);
 
+export const createDebtRecord = (storeId, debtAmount) =>
+  API.post("/franchise-stores/payment-records", { storeId, debtAmount });
+
 export const createNewFranchiseStore = (data) => API.post("/franchise-stores", data);
 
 //address controller
