@@ -69,6 +69,15 @@ const TABS = [
   { key: "RETURNED",               label: "Returned" },
 ];
 
+/* ── Format raw enum values like "PAY_AT_THE_END_OF_MONTH" → "Pay At The End Of Month" ── */
+const formatLabel = (str) =>
+  str
+    ? str
+        .replace(/_/g, " ")
+        .toLowerCase()
+        .replace(/\b\w/g, (c) => c.toUpperCase())
+    : "—";
+
 /* ═══════════════════════════════════════════════════════════════════════
    OrderCard — self-contained card that fetches & shows all order detail
    ═══════════════════════════════════════════════════════════════════════ */
@@ -257,8 +266,8 @@ const OrderCard = ({ order, storeName, onRefresh }) => {
             {[
               { label: "Order ID",       value: order.orderId },
               { label: "Store",          value: storeName(order.storeId) },
-              { label: "Payment",        value: order.paymentOption },
-              { label: "Order Status",   value: order.statusOrder },
+              { label: "Payment Option", value: formatLabel(order.paymentOption) },
+              { label: "Order Status",   value: formatLabel(order.statusOrder) },
               { label: "Payment Status", value: order.paymentStatus ?? "—" },
               { label: "Priority",       value: order.priorityLevel ?? "—" },
               { label: "Delivery Date",  value: order.orderDate ?? "—" },
@@ -922,21 +931,6 @@ const SupplyCoordinatorOrders = () => {
                     </div>
                     <span className="text-sm text-muted-foreground">{storeName(o.storeId)}</span>
                     <span className="text-xs text-muted-foreground">{o.orderDate ?? "—"}</span>
-                    <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full border ${st.bg} ${st.color} ${st.border}`}>
-                      <StIcon className="w-3 h-3" />
-                      {o.statusOrder}
-                    </span>
-                    <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full ${
-                      o.paymentStatus === "SUCCESS" || o.paymentStatus === "PAID" ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                      : o.paymentStatus === "REFUNDED" ? "bg-blue-50 text-blue-700 border border-blue-200"
-                      : "bg-amber-50 text-amber-700 border border-amber-200"
-                    }`}>
-                      {o.paymentStatus ?? "—"}
-                    </span>
-                    {o.priorityLevel && (
-                      <span className="text-xs font-semibold text-muted-foreground">Priority: {o.priorityLevel}</span>
-                    )}
-                    <span className="badge badge-pending ml-auto">{o.paymentOption ?? "—"}</span>
                   </div>
                   {/* ── Inline detail (OrderCard) ── */}
                   <OrderCard order={o} storeName={storeName} onRefresh={fetchOrders} />
