@@ -307,11 +307,11 @@ const SupplyDeliveryManagement = () => {
                           order.statusOrder === "CANCELLED" ? "bg-red-100 text-red-700" :
                           "bg-blue-100 text-blue-700"
                         }`}>
-                          {order.statusOrder || "N/A"}
+                          {order.statusOrder?.replaceAll("_", " ") || "N/A"}
                         </span>
                       </td>
                       <td className="px-6 py-4 text-muted-foreground">
-                        {order.paymentOption || "N/A"}
+                        {order.paymentOption?.replaceAll("_", " ") || "N/A"}
                       </td>
                       <td className="px-6 py-4">
                         <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
@@ -319,7 +319,7 @@ const SupplyDeliveryManagement = () => {
                           order.paymentStatus === "PAID" ? "bg-emerald-100 text-emerald-700" :
                           "bg-gray-100 text-gray-700"
                         }`}>
-                          {order.paymentStatus || "N/A"}
+                          {order.paymentStatus?.replaceAll("_", " ") || "N/A"}
                         </span>
                       </td>
                       <td className="px-6 py-4 text-muted-foreground whitespace-nowrap">
