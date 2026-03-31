@@ -50,6 +50,8 @@ const Login = () => {
       //thêm các path phân theo role khi login
       if (loginData.role === "ADMIN") {
         navigate("/admin");
+      } else if (loginData.role === "MANAGER") {
+        navigate("/manager");
       } else if (loginData.role === "FRANCHISE_STAFF") {
         navigate("/franchiseStaff");
       } else if (loginData.role === "SUPPLY_COORDINATOR") {

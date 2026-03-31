@@ -16,30 +16,20 @@ import MainLayout from "./MainLayout";
  */
 
 const adminNavItems = [
-  // {
-  //   section: "Tổng quan",
-  //   items: [
-  //     { label: "Dashboard", icon: LayoutDashboard, to: "/admin" },
-  //   ],
-  // },
+  {
+    section: "Tổng quan",
+    items: [
+      { label: "Dashboard", icon: LayoutDashboard, to: "/admin" },
+    ],
+  },
   {
     section: "Quản lý",
     items: [
-      //khúc này chưa rõ lắm
       { label: "User Management",  icon: Users,  to: "/admin/users"  },
       { label: "Store Management", icon: Store, to: "/admin/stores" },
       { label: "Kitchen Config", icon: CookingPot,  to: "/admin/kitchen-config" },
     ],
   },
-  // Add more sections/items here as the app grows, e.g.:
-  // {
-  //   section: "Quản lý",
-  //   items: [
-  //     { label: "Đơn hàng",  icon: ShoppingCart, to: "/admin/orders"    },
-  //     { label: "Sản phẩm",  icon: Package,      to: "/admin/products"  },
-  //     { label: "Người dùng",icon: Users,         to: "/admin/users"     },
-  //   ],
-  // },
 ];
 
 const adminPageTitles = {

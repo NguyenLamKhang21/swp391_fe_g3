@@ -134,3 +134,10 @@ export const updateKitchenConfig = (configKey, value, description) =>
 // central food
 
 export const increaseFoodBasedOnBatch = (batchId) => API.put(`/central_foods/increase/${batchId}`);
+
+// ── Order Monthly Statistics ──
+export const getOrdersMonthly = (month, year) =>
+  API.get("/orders/monthly", { params: { month, year } });
+
+export const getOrdersMonthlyByStore = (storeId, month, year) =>
+  API.get(`/orders/monthly/store/${encodeURIComponent(storeId)}`, { params: { month, year } });

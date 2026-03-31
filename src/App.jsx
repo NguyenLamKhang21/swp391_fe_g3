@@ -4,6 +4,7 @@ import RequireAuth from "./components/ui/RequireAuth";
 import AdminLayout from "./layouts/AdminLayout";
 
 // Admin pages
+import AdminDashboard from "./pages/AdminDashboard";
 import UserManagement from "./pages/UserManagement";
 import StoreManagement from "./pages/StoreManagement";
 import KitchenConfig from "./pages/KitchenConfig";
@@ -19,6 +20,12 @@ import SupplyCoordinatorLayout from "./layouts/SupplyCoordinatorLayout";
 import SupplyCoordinatorOrders from "./pages/SupplyCoordinatorOrders";
 import SupplyDeliveryManagement from "./pages/SupplyDeliveryManagement";
 import SupplyBatchManagement from "./pages/SupplyBatchManagement";
+
+// Manager pages
+import ManagerLayout from "./layouts/ManagerLayout";
+import ManagerDashboard from "./pages/ManagerDashboard";
+import ManagerOrders from "./pages/ManagerOrders";
+import ManagerStores from "./pages/ManagerStores";
 
 // Central Kitchen pages
 import CentralKitchenLayout from "./layouts/CentralKitchenLayout";
@@ -71,10 +78,7 @@ const App = () => (
         }
       >
         {/* /admin  → Dashboard (default / index page) */}
-        {/* <Route index element={<AdminDashboard />} /> */}
-
-        {/* default khi vào admin  */}
-        <Route index element={<UserManagement />} />
+        <Route index element={<AdminDashboard />} />
 
         {/* /admin/users  → User Management */}
         <Route index path="users"  element={<UserManagement />} />
@@ -112,6 +116,21 @@ const App = () => (
         <Route path="orders" element={<SupplyCoordinatorOrders />} />
         <Route path="delivery" element={<SupplyDeliveryManagement />} />
         <Route path="batch" element={<SupplyBatchManagement />} />
+      </Route>
+
+      {/* ── Manager routes ────────────────────────────────────────────── */}
+      <Route
+        path="/manager"
+        element={
+          <RequireAuth roles={["MANAGER"]}>
+            <ManagerLayout />
+          </RequireAuth>
+        }
+      >
+        <Route index element={<ManagerDashboard />} />
+        <Route path="orders" element={<ManagerOrders />} />
+        <Route path="inventory" element={<CentralKitchenInventory />} />
+        <Route path="stores" element={<ManagerStores />} />
       </Route>
 
       {/* ── Central Kitchen routes ─────────────────────────────────────── */}
