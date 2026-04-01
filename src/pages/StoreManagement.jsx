@@ -7,6 +7,34 @@ import {
   X, User, Hash, Info,
 } from "lucide-react";
 import { toast } from "react-toastify";
+/**
+ * ===== CÁC API ĐƯỢC SỬ DỤNG TRONG TRANG NÀY =====
+ *
+ * 1. getAllStore          → GET  /franchise-stores
+ *    - Mục đích: Lấy danh sách TẤT CẢ cửa hàng nhượng quyền từ backend.
+ *    - Dùng ở: hàm fetchStores() (dòng ~94) — hiển thị bảng "All Stores".
+ *
+ * 2. createNewFranchiseStore(data) → POST /franchise-stores
+ *    - Mục đích: Tạo một cửa hàng nhượng quyền MỚI.
+ *    - Dữ liệu gửi lên (payload): { storeName, address, province, district, ward }
+ *    - Dùng ở: hàm handleCreateStore() (dòng ~299) — khi nhấn nút "Create Store".
+ *
+ * 3. getAllUsers           → GET  /auth
+ *    - Mục đích: Lấy danh sách tất cả người dùng, sau đó nhóm theo storeId
+ *      để hiển thị nhân viên thuộc từng cửa hàng.
+ *
+ * 4. getProvinceId         → GET  /address/provinces
+ *    - Mục đích: Lấy danh sách Tỉnh/Thành phố từ API GHN (Giao Hàng Nhanh).
+ *    - Dùng ở: useEffect khi mount (dòng ~209) và trong fetchStores().
+ *
+ * 5. getDistrictAddress(provinceId) → GET /address/districts?provinceId=...
+ *    - Mục đích: Lấy danh sách Quận/Huyện theo Tỉnh đã chọn.
+ *    - Dùng ở: handleProvinceChange() (dòng ~227) và fetchStores().
+ *
+ * 6. getWardAddress(districtId)     → GET /address/wards?districtId=...
+ *    - Mục đích: Lấy danh sách Phường/Xã theo Quận đã chọn.
+ *    - Dùng ở: handleDistrictChange() (dòng ~257) và fetchStores().
+ */
 import { getAllStore, getAllUsers, createNewFranchiseStore, getProvinceId, getDistrictAddress, getWardAddress } from "../api/authAPI";
 
 /* ─── Debt Status Badge ─── */
@@ -14,12 +42,12 @@ const DebtBadge = ({ deptStatus }) =>
   deptStatus ? (
     <span className="sm-badge sm-badge-debt">
       <XCircle className="w-3.5 h-3.5" />
-      Có nợ
+      In Debt
     </span>
   ) : (
     <span className="sm-badge sm-badge-clear">
       <CheckCircle className="w-3.5 h-3.5" />
-      Không nợ
+      No Debt
     </span>
   );
 
@@ -90,12 +118,17 @@ const StoreManagement = () => {
   const [loadingDistrict, setLoadingDistrict] = useState(false);
   const [loadingWard,     setLoadingWard]     = useState(false);
 
-  /* ── Fetch stores ── */
+  /* ── Lấy danh sách tất cả cửa hàng (HIỂN THỊ BẢNG "ALL STORES") ── */
+  // API chính: getAllStore() → GET /franchise-stores
+  // Hàm này được gọi khi component mount lần đầu (useEffect dòng ~347)
+  // và mỗi khi người dùng nhấn nút "Refresh" hoặc sau khi tạo store mới thành công.
   const fetchStores = async () => {
     setLoading(true);
     setFetchError(null);
     try {
-      // Lấy danh sách tỉnh/thành phố nếu trong state chưa có
+      // Bước phụ: Lấy danh sách tỉnh/thành phố từ GHN (nếu chưa có trong state)
+      // API: getProvinceId() → GET /address/provinces
+      // Mục đích: Dùng để map tên tỉnh → ID tỉnh, phục vụ việc tra cứu tên Quận/Phường
       let allProvs = provinces;
       if (allProvs.length === 0) {
         try {
@@ -105,6 +138,9 @@ const StoreManagement = () => {
         } catch (e) {}
       }
 
+      // ★ API CHÍNH ĐỂ HIỂN THỊ TẤT CẢ CỬA HÀNG ★
+      // getAllStore() → gọi GET /franchise-stores
+      // Trả về mảng các object store: { storeId, storeName, address, province, district, ward, ... }
       const res = await getAllStore();
       const list = Array.isArray(res.data)
         ? res.data
@@ -296,44 +332,56 @@ const StoreManagement = () => {
     setStoreForm((prev) => ({ ...prev, [name]: value }));
   };
 
+  /* ── XỬ LÝ TẠO CỬA HÀNG MỚI (CREATE NEW STORE) ── */
+  // ★ API CHÍNH: createNewFranchiseStore(payload) → POST /franchise-stores
+  // Gửi thông tin cửa hàng mới lên backend để tạo record trong database.
   const handleCreateStore = async (e) => {
-    e.preventDefault(); // stops the browser from refreshing the page
+    e.preventDefault(); // Ngăn trình duyệt refresh trang khi submit form
 
-    // validation
+    // Kiểm tra dữ liệu đầu vào (validation phía client)
     if (!storeForm.storeName.trim()) {
       toast.error("Store name is required");
+      return;
+    }
+    if (storeForm.storeName.trim().length > 100) {
+      toast.error("Store name must be 100 characters or less");
       return;
     }
     if (!storeForm.address.trim()) {
       toast.error("Address is required");
       return;
     }
+    if (storeForm.address.trim().length > 255) {
+      toast.error("Address must be 255 characters or less");
+      return;
+    }
 
     try {
       setCreating(true);
 
-      // Backend contract (verified by error logs):
-      //   province → String  (GHN province NAME, validated by name)
-      //   district → Integer (GHN DistrictID)
-      //   ward     → String  (GHN WardCode)
+      // Chuẩn bị dữ liệu gửi lên backend (payload):
+      //   province → String  (Tên tỉnh/thành phố lấy từ GHN)
+      //   district → Integer (Mã số quận/huyện từ GHN - DistrictID)
+      //   ward     → String  (Mã phường/xã từ GHN - WardCode)
       const payload = {
         storeName: storeForm.storeName,
         address:   storeForm.address,
-        province:  storeForm.province  || null,              // ← ProvinceName string
-        district:  storeForm.districtId ? Number(storeForm.districtId) : null, // ← Integer ID
-        ward:      storeForm.wardCode   || null,             // ← WardCode string
+        province:  storeForm.province  || null,              // ← Tên tỉnh (String)
+        district:  storeForm.districtId ? Number(storeForm.districtId) : null, // ← Mã quận (Integer)
+        ward:      storeForm.wardCode   || null,             // ← Mã phường (String)
       };
 
+      // ★ GỌI API TẠO STORE: POST /franchise-stores với body = payload ở trên
       const res = await createNewFranchiseStore(payload);
 
       // Axios only resolves for 2xx, so reaching here already means success.
       // We double-check with res.status just in case, but res.data shape can vary.
       if (res.status >= 200 && res.status < 300) {
         toast.success("Store created successfully!");
-        setStoreForm(EMPTY_STORE_FORM);
+        setStoreForm(EMPTY_STORE_FORM); // Reset form về trạng thái rỗng
         setDistricts([]);
         setWards([]);
-        fetchStores(); // refresh the table
+        fetchStores(); // Gọi lại getAllStore() để cập nhật bảng danh sách cửa hàng
       } else {
         toast.error(res.data?.message ?? "Failed to create store");
       }
@@ -344,6 +392,9 @@ const StoreManagement = () => {
     }
   };
 
+  // Khi component được render lần đầu (mount):
+  // 1. fetchStores() → gọi getAllStore() (GET /franchise-stores) để lấy danh sách cửa hàng
+  // 2. fetchUsers()  → gọi getAllUsers() (GET /auth) để lấy danh sách nhân viên
   useEffect(() => { fetchStores(); fetchUsers(); }, []);
 
   /* ── Derived stats ── */
@@ -395,7 +446,7 @@ const StoreManagement = () => {
 
       {/* ── Stat Cards ── */}
       <div className="grid grid-cols-1 gap-4">
-        <StatCard icon={Building2}    label="Tổng số cửa hàng"  value={total}       color="admin-sidebar-brand" />
+        <StatCard icon={Building2}    label="Total Stores"  value={total}       color="admin-sidebar-brand" />
       </div>
 
         {/* ── Create Store Card ── */}
@@ -406,7 +457,6 @@ const StoreManagement = () => {
           </div>
           <div>
             <h3 className="text-base font-semibold text-foreground">Create New Store</h3>
-            <p className="text-xs text-muted-foreground">Calls POST /franchise-stores</p>
           </div>
         </div>
 
@@ -420,8 +470,8 @@ const StoreManagement = () => {
             <div className="relative">
               <Store className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
               <input id="sm-storeName" name="storeName" value={storeForm.storeName}
-                onChange={handleStoreChange} placeholder="VD: Chi nhánh Quận 1"
-                required className="um-input pl-10" />
+                onChange={handleStoreChange} placeholder="e.g. Branch District 1"
+                maxLength={100} required className="um-input pl-10" />
             </div>
           </div>
 
@@ -433,15 +483,15 @@ const StoreManagement = () => {
             <div className="relative">
               <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
               <input id="sm-address" name="address" value={storeForm.address}
-                onChange={handleStoreChange} placeholder="VD: 123 Nguyễn Huệ"
-                required className="um-input pl-10" />
+                onChange={handleStoreChange} placeholder="e.g. 123 Nguyen Hue St."
+                maxLength={255} required className="um-input pl-10" />
             </div>
           </div>
 
           {/* Province */}
           <div className="space-y-1.5">
             <label className="text-sm font-medium text-foreground" htmlFor="sm-province">
-              Tỉnh / Thành phố
+              Province / City
             </label>
             <div className="relative">
               <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none z-10" />
@@ -453,7 +503,7 @@ const StoreManagement = () => {
                 className="um-input pl-10 appearance-none"
               >
                 <option value="">
-                  {loadingProvince ? "Đang tải…" : "-- Chọn tỉnh / thành phố --"}
+                  {loadingProvince ? "Loading…" : "-- Select province / city --"}
                 </option>
                 {provinces.map((p) => (
                   <option key={p.ProvinceID} value={p.ProvinceID}>
@@ -467,7 +517,7 @@ const StoreManagement = () => {
           {/* District */}
           <div className="space-y-1.5">
             <label className="text-sm font-medium text-foreground" htmlFor="sm-district">
-              Quận / Huyện
+              District
             </label>
             <div className="relative">
               <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none z-10" />
@@ -480,10 +530,10 @@ const StoreManagement = () => {
               >
                 <option value="">
                   {loadingDistrict
-                    ? "Đang tải…"
+                    ? "Loading…"
                     : !storeForm.provinceId
-                    ? "-- Chọn tỉnh trước --"
-                    : "-- Chọn quận / huyện --"}
+                    ? "-- Select province first --"
+                    : "-- Select district --"}
                 </option>
                 {districts.map((d) => (
                   <option key={d.DistrictID} value={d.DistrictID}>
@@ -497,7 +547,7 @@ const StoreManagement = () => {
           {/* Ward */}
           <div className="space-y-1.5">
             <label className="text-sm font-medium text-foreground" htmlFor="sm-ward">
-              Phường / Xã
+              Ward
             </label>
             <div className="relative">
               <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none z-10" />
@@ -510,10 +560,10 @@ const StoreManagement = () => {
               >
                 <option value="">
                   {loadingWard
-                    ? "Đang tải…"
+                    ? "Loading…"
                     : !storeForm.districtId
-                    ? "-- Chọn quận trước --"
-                    : "-- Chọn phường / xã --"}
+                    ? "-- Select district first --"
+                    : "-- Select ward --"}
                 </option>
                 {wards.map((w) => (
                   <option key={w.WardCode} value={w.WardCode}>
@@ -563,9 +613,9 @@ const StoreManagement = () => {
               onChange={(e) => setDebtFilter(e.target.value)}
               className="um-input py-2 text-sm"
             >
-              <option value="ALL">Tất cả</option>
-              <option value="DEBT">Đang có nợ</option>
-              <option value="CLEAR">Không nợ</option>
+              <option value="ALL">All</option>
+              <option value="DEBT">In Debt</option>
+              <option value="CLEAR">No Debt</option>
             </select>
 
             {/* Search */}
@@ -575,7 +625,7 @@ const StoreManagement = () => {
                 id="sm-search"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Tìm cửa hàng…"
+                placeholder="Search stores…"
                 className="um-input pl-9 py-2 text-sm w-52"
               />
             </div>
@@ -626,11 +676,11 @@ const StoreManagement = () => {
                 <div className="w-14 h-14 rounded-full bg-muted flex items-center justify-center">
                   <Store className="w-7 h-7 text-muted-foreground" />
                 </div>
-                <p className="text-base font-semibold text-foreground">Không tìm thấy cửa hàng</p>
+                <p className="text-base font-semibold text-foreground">No stores found</p>
                 <p className="text-sm text-muted-foreground">
                   {search || debtFilter !== "ALL"
-                    ? "Thử điều chỉnh bộ lọc hoặc từ khóa tìm kiếm."
-                    : "Chưa có cửa hàng nào trong hệ thống."}
+                    ? "Try adjusting your filters or search terms."
+                    : "No stores in the system yet."}
                 </p>
               </div>
             ) : (
@@ -658,15 +708,15 @@ const StoreManagement = () => {
 
                         <div>
                           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-1.5">
-                            <Store className="w-4 h-4" /> Thông tin cửa hàng
+                            <Store className="w-4 h-4" /> Store Information
                           </p>
                           <div className="grid grid-cols-2 gap-3">
                             {[
-                              { label: "Tỉnh / TP",  value: s.province, wide: true },
-                              { label: "Địa chỉ",    value: s.address, wide: true },
-                              { label: "Quận",       value: s.districtName },
-                              { label: "Phường / Xã",value: s.wardName },
-                              { label: "Liên hệ",    value: s.numberOfContact, wide: true },
+                              { label: "Province / City",  value: s.province, wide: true },
+                              { label: "Address",    value: s.address, wide: true },
+                              { label: "District",       value: s.districtName },
+                              { label: "Ward",value: s.wardName },
+                              { label: "Contact",    value: s.numberOfContact, wide: true },
                             ].map(({ label, value, wide }) => (
                               <div key={label} className={`bg-background shadow-sm rounded-xl border border-border/50 p-3 ${wide ? "col-span-2" : ""}`}>
                                 <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{label}</p>
@@ -680,7 +730,7 @@ const StoreManagement = () => {
                       {/* Right: Users inside Store */}
                       <div className="flex-1 w-full xl:max-w-md">
                         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-1.5">
-                          <User className="w-4 h-4" /> Nhân viên thuộc cửa hàng
+                          <User className="w-4 h-4" /> Store Staff
                         </p>
                         
                         {users.length === 0 ? (
@@ -689,8 +739,8 @@ const StoreManagement = () => {
                               <User className="w-6 h-6 text-muted-foreground" />
                             </div>
                             <div>
-                              <p className="text-sm font-medium text-foreground">Không có nhân viên</p>
-                              <p className="text-xs text-muted-foreground mt-0.5">Chưa có nhân viên nào được gán cho cửa hàng này.</p>
+                              <p className="text-sm font-medium text-foreground">No staff</p>
+                              <p className="text-xs text-muted-foreground mt-0.5">No staff have been assigned to this store yet.</p>
                             </div>
                           </div>
                         ) : (
@@ -717,8 +767,8 @@ const StoreManagement = () => {
                                 
                                 <div className="grid grid-cols-2 gap-2">
                                   {[
-                                    { label: "Vai trò", value: u.role },
-                                    { label: "Điện thoại", value: u.phone },
+                                    { label: "Role", value: u.role },
+                                    { label: "Phone", value: u.phone },
                                   ].map(({ label, value, wide }) => (
                                     <div key={label} className={`bg-muted/30 rounded-lg p-2.5 ${wide ? "col-span-2" : ""}`}>
                                       <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">{label}</p>

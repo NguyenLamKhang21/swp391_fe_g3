@@ -196,7 +196,6 @@ const UserManagement = () => {
           </div>
           <div>
             <h3 className="text-base font-semibold text-foreground">Create New Account</h3>
-            <p className="text-xs text-muted-foreground">Calls POST /auth/create</p>
           </div>
         </div>
 
