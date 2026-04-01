@@ -394,11 +394,8 @@ const StoreManagement = () => {
       </div>
 
       {/* ── Stat Cards ── */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 gap-4">
         <StatCard icon={Building2}    label="Tổng số cửa hàng"  value={total}       color="admin-sidebar-brand" />
-        <StatCard icon={XCircle}      label="Đang có nợ"        value={withDebt}    color="bg-red-500"    />
-        <StatCard icon={CheckCircle}  label="Không nợ"          value={withoutDebt} color="bg-emerald-500" />
-        <StatCard icon={DollarSign}   label="Tổng doanh thu"    value={fmtRevenue(totalRevenue)} color="bg-violet-500" />
       </div>
 
         {/* ── Create Store Card ── */}
