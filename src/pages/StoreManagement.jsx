@@ -669,26 +669,13 @@ const StoreManagement = () => {
                               { label: "Địa chỉ",    value: s.address, wide: true },
                               { label: "Quận",       value: s.districtName },
                               { label: "Phường / Xã",value: s.wardName },
-                              { label: "Liên hệ",    value: s.numberOfContact },
-                              { label: "Doanh thu",  value: fmtRevenue(s.revenue) },
+                              { label: "Liên hệ",    value: s.numberOfContact, wide: true },
                             ].map(({ label, value, wide }) => (
                               <div key={label} className={`bg-background shadow-sm rounded-xl border border-border/50 p-3 ${wide ? "col-span-2" : ""}`}>
                                 <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{label}</p>
                                 <p className="text-sm font-medium text-foreground mt-1 break-words">{value || "—"}</p>
                               </div>
                             ))}
-                            <div className="col-span-2 bg-background shadow-sm border border-border/50 rounded-xl p-3">
-                              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Thanh toán</p>
-                              {s.paymentMethods?.length > 0 ? (
-                                <div className="flex flex-wrap gap-2">
-                                  {s.paymentMethods.map((m) => (
-                                    <PaymentPill key={m} method={m} />
-                                  ))}
-                                </div>
-                              ) : (
-                                <span className="text-sm text-muted-foreground">—</span>
-                              )}
-                            </div>
                           </div>
                         </div>
                       </div>
