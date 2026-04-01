@@ -482,7 +482,9 @@ const FranchiseStaff = () => {
                 id="fs-delivery-date"
                 name="orderDate"
                 value={form.orderDate}
-                min={new Date().toISOString().split("T")[0]}
+                min={new Date(new Date().setDate(new Date().getDate() + 2)).toISOString().split("T")[0]}
+                // forces the calendar picker to disable today's date and any dates in the past.
+                // This guarantees that the chosen delivery date is at least one day in advance.
                 onChange={handleChange}
                 className="um-input pl-10 w-full"
               />

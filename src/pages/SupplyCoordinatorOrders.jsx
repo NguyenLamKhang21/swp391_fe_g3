@@ -21,6 +21,7 @@ import {
   getStorePaymentRecords,
   refundPayment,
   getAllStore,
+  editOrderItem,
 } from "../api/authAPI";
 
 /* ═══════════════════════════════════════════════════════════════════════
@@ -250,6 +251,35 @@ const OrderCard = ({ order, storeName, onRefresh }) => {
         return Number(item.quantity) > stock;
       })
     : false;
+
+  /* ── Edit order items: cap quantities to central food stock ── */
+  const handleEditOrderItems = async () => {
+    if (!orderDetail?.items || centralFoods.length === 0) return;
+    try {
+      setActionLoading(true);
+      // Build items payload: for each item whose qty > stock, set qty = stock
+      const adjustedItems = orderDetail.items.map((item) => {
+        const cf = centralFoods.find((f) => f.foodName === item.foodName);
+        const stock = cf ? Number(cf.amount || 0) : 0;
+        const qty = Number(item.quantity);
+        return {
+          centralFoodId: cf?.foodId ?? item.centralFoodId ?? item.foodId,
+          quantity: qty > stock ? stock : qty,
+        };
+      }).filter((it) => it.quantity > 0); // remove items with 0 stock
+
+      if (adjustedItems.length === 0) {
+        toast.error("Tất cả các món đều hết hàng trong kho — không thể điều chỉnh.");
+        return;
+      }
+
+      await editOrderItem(order.orderId, { items: adjustedItems });
+      toast.success(`Đã điều chỉnh số lượng đơn ${order.orderId} theo tồn kho.`);
+      onRefresh();
+    } catch (err) {
+      toast.error(err?.response?.data?.message ?? "Không thể chỉnh sửa đơn hàng.");
+    } finally { setActionLoading(false); }
+  };
 
   return (
     <div>
@@ -499,7 +529,7 @@ const OrderCard = ({ order, storeName, onRefresh }) => {
                         <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-green-50 border border-green-200">
                           <CheckCircle className="w-4 h-4 text-green-600 flex-shrink-0" />
                           <p className="text-xs text-green-700 font-medium">
-                            Đủ hàng trong kho — có thể dùng <strong>Sẵn sàng giao</strong> để trừ kho và chuyển thẳng sang <strong>READY_TO_PICK</strong>, hoặc <strong>Xác nhận đơn</strong> để chuyển sang <strong>IN_PROGRESS</strong>.
+                            Đủ hàng trong kho — có thể dùng <strong>Sẵn sàng giao</strong> để trừ kho và chuyển thẳng sang <strong>READY TO PICK</strong>
                           </p>
                         </div>
                       ) : (
@@ -513,14 +543,6 @@ const OrderCard = ({ order, storeName, onRefresh }) => {
 
                       {/* Action buttons */}
                       <div className="flex flex-wrap gap-2">
-                        <button
-                          onClick={handleConfirmOrder}
-                          disabled={actionLoading}
-                          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-60"
-                        >
-                          {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
-                          Xác nhận đơn (Priority {selectedPriority})
-                        </button>
 
                         {!hasMissingFood && (
                           <button
@@ -533,7 +555,7 @@ const OrderCard = ({ order, storeName, onRefresh }) => {
                           </button>
                         )}
 
-                        {order.statusOrder === "PENDING" && (
+                        {order.statusOrder === "PENDING" && hasMissingFood && (
                           <button
                             onClick={handleWaitingForUpdate}
                             disabled={actionLoading}
@@ -541,6 +563,17 @@ const OrderCard = ({ order, storeName, onRefresh }) => {
                           >
                             {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <MessageSquare className="w-4 h-4" />}
                             Thiếu hàng — Deal với Store
+                          </button>
+                        )}
+
+                        {order.statusOrder === "WAITING_FOR_UPDATE" && hasMissingFood && (
+                          <button
+                            onClick={handleEditOrderItems}
+                            disabled={actionLoading}
+                            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-violet-600 text-white text-sm font-semibold hover:bg-violet-700 active:scale-[0.98] transition-all disabled:opacity-60"
+                          >
+                            {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Package className="w-4 h-4" />}
+                            Điều chỉnh số lượng theo kho
                           </button>
                         )}
 

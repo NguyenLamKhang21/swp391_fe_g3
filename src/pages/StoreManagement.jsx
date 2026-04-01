@@ -720,7 +720,6 @@ const StoreManagement = () => {
                                 
                                 <div className="grid grid-cols-2 gap-2">
                                   {[
-                                    { label: "User ID", value: u.id, wide: true },
                                     { label: "Vai trò", value: u.role },
                                     { label: "Điện thoại", value: u.phone },
                                   ].map(({ label, value, wide }) => (
