@@ -397,7 +397,7 @@ const OrderCard = ({ order, storeName, onRefresh }) => {
               <span className="text-[10px] text-muted-foreground">{centralFoods.length} sản phẩm</span>
             </div>
             {centralFoods.length > 0 ? (
-              <div className="overflow-x-auto max-h-40 overflow-y-auto">
+              <div className="overflow-x-auto max-h-80 overflow-y-auto">
                 <table className="w-full text-sm">
                   <thead className="sticky top-0 z-10 bg-background shadow-sm">
                     <tr className="admin-table-header">
