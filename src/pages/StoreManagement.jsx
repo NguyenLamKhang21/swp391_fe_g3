@@ -95,7 +95,29 @@ const StoreManagement = () => {
     setLoading(true);
     setFetchError(null);
     try {
-      // Lấy danh sách tỉnh/thành phố nếu trong state chưa có
+      // Phase 1: Fetch stores immediately and display them
+      const res = await getAllStore();
+      const list = Array.isArray(res.data)
+        ? res.data
+        : Array.isArray(res.data?.data)
+          ? res.data.data
+          : [];
+
+      // Set fallback names (IDs) so the page renders right away
+      for (const s of list) {
+        s.districtName = s.district ? String(s.district) : "";
+        s.wardName = s.ward ? String(s.ward) : "";
+      }
+      setStores([...list]);
+      setLoading(false);
+
+      // Phase 2: Resolve district/ward names in the background
+      // Use localStorage cache so subsequent loads are instant
+      const GHN_CACHE_KEY = "ghn_name_cache";
+      let ghnCache = {};
+      try { ghnCache = JSON.parse(localStorage.getItem(GHN_CACHE_KEY) || "{}"); } catch { ghnCache = {}; }
+
+      // Fetch provinces if not in state yet
       let allProvs = provinces;
       if (allProvs.length === 0) {
         try {
@@ -105,80 +127,84 @@ const StoreManagement = () => {
         } catch (e) {}
       }
 
-      const res = await getAllStore();
-      const list = Array.isArray(res.data)
-        ? res.data
-        : Array.isArray(res.data?.data)
-          ? res.data.data
-          : [];
-
-      // Sử dụng ID để gọi API và lấy tên thật của quận, phường 
       const provNameToId = {};
       allProvs.forEach(p => { provNameToId[p.ProvinceName] = p.ProvinceID; });
 
+      // Collect unique province IDs and district IDs that need resolving
+      const requiredPIds = new Set();
+      const requiredDIds = new Set();
+      for (const s of list) {
+        if (s.province && s.district) {
+          const pId = provNameToId[s.province];
+          // Only fetch if not already cached
+          if (pId && !ghnCache[`d_${pId}`]) requiredPIds.add(pId);
+          if (s.ward && !ghnCache[`w_${s.district}`]) requiredDIds.add(s.district);
+        }
+      }
+
+      // Fetch districts and wards in parallel (only uncached ones)
       const distCache = {};
       const wardCache = {};
 
-      // BƯỚC 1: Thu thập tất cả các Province ID và District ID độc nhất 
-      // Việc này giúp tránh gọi trùng lặp cùng một ID nhiều lần.
-      const requiredPIds = new Set();
-      const requiredDIds = new Set();
-
-      for (const s of list) {
-        if (s.province && s.district) {
-          const pId = provNameToId[s.province];
-          if (pId) requiredPIds.add(pId);
-          if (s.ward) requiredDIds.add(s.district);
-        }
-      }
-
-      // BƯỚC 2: Gọi API đồng thời (Parallel Fetching)
-      // Dùng Promise.all để gửi tất cả các requests lên GHN cùng một lúc
-      // Thay vì phải chờ từng request báo về xong mới chạy tiếp (N+1 Query Problem).
-      await Promise.all(
-        Array.from(requiredPIds).map(async (pId) => {
+      await Promise.all([
+        ...Array.from(requiredPIds).map(async (pId) => {
           try {
             const dRes = await getDistrictAddress(pId);
-            distCache[pId] = Array.isArray(dRes.data) ? dRes.data : dRes.data?.data || [];
-          } catch (e) { distCache[pId] = []; }
-        })
-      );
-
-      // Tuơng tự, fetch tất cả danh sách Phường/Xã cho các Quận/Huyện song song.
-      await Promise.all(
-        Array.from(requiredDIds).map(async (dId) => {
+            const data = Array.isArray(dRes.data) ? dRes.data : dRes.data?.data || [];
+            distCache[pId] = data;
+            // Cache the result: districtId → name
+            const cached = {};
+            data.forEach(d => { cached[String(d.DistrictID)] = d.DistrictName; });
+            ghnCache[`d_${pId}`] = cached;
+          } catch { distCache[pId] = []; }
+        }),
+        ...Array.from(requiredDIds).map(async (dId) => {
           try {
             const wRes = await getWardAddress(dId);
-            wardCache[dId] = Array.isArray(wRes.data) ? wRes.data : wRes.data?.data || [];
-          } catch (e) { wardCache[dId] = []; }
-        })
-      );
+            const data = Array.isArray(wRes.data) ? wRes.data : wRes.data?.data || [];
+            wardCache[dId] = data;
+            // Cache the result: wardCode → name
+            const cached = {};
+            data.forEach(w => { cached[String(w.WardCode)] = w.WardName; });
+            ghnCache[`w_${dId}`] = cached;
+          } catch { wardCache[dId] = []; }
+        }),
+      ]);
 
-      // BƯỚC 3: Xử lý dữ liệu đồng bộ
-      // Gắn tên thật của Quận và Phường vào từng Store ngay lập tức trên máy khách.
+      // Save cache to localStorage
+      try { localStorage.setItem(GHN_CACHE_KEY, JSON.stringify(ghnCache)); } catch {}
+
+      // Apply resolved names (from fresh fetch + cache)
+      let hasUpdates = false;
       for (const s of list) {
-        s.districtName = s.district ? String(s.district) : "";
-        s.wardName = s.ward ? String(s.ward) : "";
-
         if (s.province && s.district) {
           const pId = provNameToId[s.province];
-          if (pId && distCache[pId]) {
-            const dMatch = distCache[pId].find(d => String(d.DistrictID) === String(s.district));
-            if (dMatch) s.districtName = dMatch.DistrictName;
+          // Try fresh data first, then cache
+          const distMap = ghnCache[`d_${pId}`] || {};
+          const resolvedDistrict = distMap[String(s.district)];
+          if (resolvedDistrict && s.districtName !== resolvedDistrict) {
+            s.districtName = resolvedDistrict;
+            hasUpdates = true;
           }
-          if (s.ward && wardCache[s.district]) {
-            const wMatch = wardCache[s.district].find(w => String(w.WardCode) === String(s.ward));
-            if (wMatch) s.wardName = wMatch.WardName;
+
+          if (s.ward) {
+            const wardMap = ghnCache[`w_${s.district}`] || {};
+            const resolvedWard = wardMap[String(s.ward)];
+            if (resolvedWard && s.wardName !== resolvedWard) {
+              s.wardName = resolvedWard;
+              hasUpdates = true;
+            }
           }
         }
       }
 
-      setStores(list);
+      // Only re-render if names were actually resolved
+      if (hasUpdates) setStores([...list]);
+
     } catch (err) {
       const msg = err?.response?.data?.message ?? "Failed to load stores.";
       setFetchError(msg);
       toast.error(msg);
-    } finally {
       setLoading(false);
     }
   };
