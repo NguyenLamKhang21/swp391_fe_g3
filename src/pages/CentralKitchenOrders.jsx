@@ -46,7 +46,14 @@ const BatchCard = ({ batch, onRefresh }) => {
   const [selectedStatus, setSelectedStatus] = useState(batch.status);
   const [actionLoading, setActionLoading]   = useState(false);
   const [stockLoading, setStockLoading]     = useState(false);
-  const [hasStocked, setHasStocked]         = useState(false);
+
+  // Persist stocked state in localStorage so it survives refresh
+  const getStockedSet = () => {
+    try {
+      return new Set(JSON.parse(localStorage.getItem("stockedBatches") || "[]"));
+    } catch { return new Set(); }
+  };
+  const [hasStocked, setHasStocked] = useState(() => getStockedSet().has(batch.batchId));
 
   // reset picker if the batch prop status changes (after a refresh)
   useEffect(() => {
@@ -74,6 +81,10 @@ const BatchCard = ({ batch, onRefresh }) => {
       setStockLoading(true);
       await increaseFoodBasedOnBatch(batch.batchId);
       toast.success(`Đã nhập kho thành công cho batch ${batch.batchId}.`);
+      // Persist to localStorage
+      const stocked = getStockedSet();
+      stocked.add(batch.batchId);
+      localStorage.setItem("stockedBatches", JSON.stringify([...stocked]));
       setHasStocked(true);
       onRefresh();
     } catch (err) {
