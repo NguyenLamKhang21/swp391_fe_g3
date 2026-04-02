@@ -5,8 +5,8 @@ const centralKitchenNavItems = [
   {
     section: "Xử lý đơn hàng",
     items: [
-      { label: "Order Processing",   icon: ChefHat,       to: "/central-kitchen/orders" },
-      // { label: "Order Management",   icon: ClipboardList, to: "/central-kitchen/order-management" },
+      { label: "Batch Production",   icon: ChefHat,       to: "/central-kitchen/orders" },
+      { label: "Order Management",   icon: ClipboardList, to: "/central-kitchen/order-management" },
     ],
   },
   {

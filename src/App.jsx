@@ -144,7 +144,7 @@ const App = () => (
       >
         <Route index element={<CentralKitchenOrders />} />
         <Route path="orders" element={<CentralKitchenOrders />} />
-        {/* <Route path="order-management" element={<CentralKitchenOrderManagement />} /> */}
+        <Route path="order-management" element={<SupplyCoordinatorOrders />} />
         <Route path="inventory" element={<CentralKitchenInventory />} />
       </Route>
     </Routes>

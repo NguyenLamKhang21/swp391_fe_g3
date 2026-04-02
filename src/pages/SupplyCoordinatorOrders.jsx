@@ -83,6 +83,9 @@ const formatLabel = (str) =>
    OrderCard — self-contained card that fetches & shows all order detail
    ═══════════════════════════════════════════════════════════════════════ */
 const OrderCard = ({ order, storeName, onRefresh }) => {
+  const userRole = sessionStorage.getItem("role");
+  const isKitchenStaff = userRole === "CENTRAL_KITCHEN_STAFF";
+
   const [orderDetail,    setOrderDetail]    = useState(null);
   const [orderNote,      setOrderNote]      = useState("");
   const [storeOrders,    setStoreOrders]    = useState([]);
@@ -526,12 +529,21 @@ const OrderCard = ({ order, storeName, onRefresh }) => {
 
                       {/* Stock-sufficiency indicator */}
                       {!hasMissingFood ? (
-                        <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-green-50 border border-green-200">
-                          <CheckCircle className="w-4 h-4 text-green-600 flex-shrink-0" />
-                          <p className="text-xs text-green-700 font-medium">
-                            Đủ hàng trong kho — có thể dùng <strong>Sẵn sàng giao</strong> để trừ kho và chuyển thẳng sang <strong>READY TO PICK</strong>
-                          </p>
-                        </div>
+                        isKitchenStaff ? (
+                          <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-green-50 border border-green-200">
+                            <CheckCircle className="w-4 h-4 text-green-600 flex-shrink-0" />
+                            <p className="text-xs text-green-700 font-medium">
+                              Đủ hàng trong kho — có thể dùng <strong>Sẵn sàng giao</strong> để trừ kho và chuyển thẳng sang <strong>READY TO PICK</strong>
+                            </p>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-green-50 border border-green-200">
+                            <CheckCircle className="w-4 h-4 text-green-600 flex-shrink-0" />
+                            <p className="text-xs text-green-700 font-medium">
+                              Đủ hàng trong kho.
+                            </p>
+                          </div>
+                        )
                       ) : (
                         <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-50 border border-amber-200">
                           <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0" />
@@ -544,7 +556,7 @@ const OrderCard = ({ order, storeName, onRefresh }) => {
                       {/* Action buttons */}
                       <div className="flex flex-wrap gap-2">
 
-                        {!hasMissingFood && (
+                        {isKitchenStaff && !hasMissingFood && (
                           <button
                             onClick={handleReadyToPick}
                             disabled={actionLoading}
@@ -585,6 +597,17 @@ const OrderCard = ({ order, storeName, onRefresh }) => {
                           >
                             {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <AlertCircle className="w-4 h-4" />}
                             Đợi bếp nấu thêm → WAITING_FOR_PRODUCTION
+                          </button>
+                        )}
+
+                        {!isKitchenStaff && (
+                          <button
+                            onClick={handleUpdatePriority}
+                            disabled={actionLoading}
+                            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition-colors disabled:opacity-60"
+                          >
+                            {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
+                            Cập nhật Priority
                           </button>
                         )}
 
@@ -749,16 +772,37 @@ const OrderCard = ({ order, storeName, onRefresh }) => {
 
           {/* ── IN_PROGRESS / COOKING_DONE ── */}
           {["IN_PROGRESS", "COOKING_DONE"].includes(order.statusOrder) && (
-            <div className="rounded-lg p-4 bg-red-50 border border-red-200">
-              <div className="flex items-center gap-2">
-                <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0" />
-                <div>
-                  <p className="text-sm text-red-700 font-semibold">Không thể hủy — Central Kitchen đã bắt đầu chế biến</p>
-                  <p className="text-xs text-red-600 mt-0.5">
-                    Trạng thái: {order.statusOrder}. Đơn chỉ có thể hủy trước khi Central Kitchen bắt đầu nấu.
-                  </p>
+            <div className="border border-border rounded-lg p-4 space-y-3">
+              <div className="rounded-lg p-3 bg-red-50 border border-red-200">
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0" />
+                  <div>
+                    <p className="text-sm text-red-700 font-semibold">Không thể hủy — Central Kitchen đã bắt đầu chế biến</p>
+                    <p className="text-xs text-red-600 mt-0.5">
+                      Trạng thái: {order.statusOrder}. Đơn chỉ có thể hủy trước khi Central Kitchen bắt đầu nấu.
+                    </p>
+                  </div>
                 </div>
               </div>
+
+              {isKitchenStaff && !hasMissingFood && (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-green-50 border border-green-200">
+                    <CheckCircle className="w-4 h-4 text-green-600 flex-shrink-0" />
+                    <p className="text-xs text-green-700 font-medium">
+                      Đủ hàng trong kho — có thể dùng <strong>Sẵn sàng giao</strong> để trừ kho và chuyển thẳng sang <strong>READY TO PICK</strong>
+                    </p>
+                  </div>
+                  <button
+                    onClick={handleReadyToPick}
+                    disabled={actionLoading}
+                    className="flex items-center gap-2 px-4 py-2 rounded-lg bg-green-600 text-white text-sm font-semibold hover:bg-green-700 active:scale-[0.98] transition-all disabled:opacity-60"
+                  >
+                    {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Truck className="w-4 h-4" />}
+                    Sẵn sàng giao
+                  </button>
+                </div>
+              )}
             </div>
           )}
 
